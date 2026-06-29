@@ -72,38 +72,40 @@ export function TopNav() {
     toast('Freshdesk data synced!', 'success')
   }
 
+  const divider = ' | '
+
   return (
     <nav className="fixed top-0 left-0 right-0 h-16 z-50 flex items-center px-4 gap-3"
-      style={{ background: '#040a14', borderBottom: '1px solid #0d2147' }}>
+      style={{ background: 'rgba(1,1,8,0.85)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
 
       <div className="flex items-center gap-2 mr-2">
-        <div className="flex items-center gap-2">
-  <div style={{ width: 4, height: 22, background: 'linear-gradient(180deg,#3b82f6,#6366f1)', borderRadius: 3 }} />
-  <span style={{ color: '#fff', fontWeight: 800, fontSize: 22, letterSpacing: '-1px', fontFamily: 'Space Grotesk, sans-serif' }}>Razorpay</span>
-  <span style={{ color: '#f97316', fontWeight: 800, fontSize: 22, letterSpacing: '-1px', fontFamily: 'Space Grotesk, sans-serif' }}>X</span>
-  <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 14, margin: '0 2px' }}>|</span>
-  <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 500, letterSpacing: '0.05em' }}>Dashboard</span>
-</div>
+        <div style={{ width: 4, height: 22, background: '#3b82f6', borderRadius: 3 }} />
+        <span style={{ color: '#fff', fontWeight: 800, fontSize: 22, letterSpacing: '-1px', fontFamily: 'Space Grotesk, sans-serif' }}>Razorpay</span>
+        <span style={{ color: '#f97316', fontWeight: 800, fontSize: 22, letterSpacing: '-1px', fontFamily: 'Space Grotesk, sans-serif' }}>X</span>
+        <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: 16, margin: '0 2px' }}>{divider}</span>
+        <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, fontWeight: 500 }}>Dashboard</span>
+      </div>
 
       <button
-        className="p-2 rounded-xl text-blue-400 hover:bg-blue-900/30 lg:hidden"
+        className="p-2 rounded-xl lg:hidden"
+        style={{ color: 'rgba(255,255,255,0.6)' }}
         onClick={() => dispatch({ type: 'SET_SIDEBAR', payload: !state.sidebarOpen })}
       >
         <MdMenu className="w-5 h-5" />
       </button>
 
       <div className="flex-1 flex items-center justify-center gap-3">
-        <span style={{ fontSize: 12, color: '#3b82f6', background: '#040a14', border: '1px solid #0d2147', padding: '4px 12px', borderRadius: 999 }} className="hidden md:block">
+        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', padding: '4px 12px', borderRadius: 999 }} className="hidden md:block">
           {new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
         </span>
         {lastSync && (
-          <span style={{ fontSize: 12, color: '#34d399', background: '#064e3b22', border: '1px solid #065f4644', padding: '4px 12px', borderRadius: 999 }} className="hidden lg:block">
-            Last sync: {lastSync.toLocaleTimeString()}
+          <span style={{ fontSize: 12, color: '#4ade80', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)', padding: '4px 12px', borderRadius: 999 }} className="hidden lg:block">
+            {'Last sync: ' + lastSync.toLocaleTimeString()}
           </span>
         )}
         {state.lastUpload && !lastSync && (
-          <span style={{ fontSize: 12, color: '#60a5fa', background: '#1e3a8a22', border: '1px solid #1e40af44', padding: '4px 12px', borderRadius: 999 }} className="hidden lg:block">
-            {state.lastUpload.rows.toLocaleString()} tickets
+          <span style={{ fontSize: 12, color: '#60a5fa', background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.15)', padding: '4px 12px', borderRadius: 999 }} className="hidden lg:block">
+            {state.lastUpload.rows.toLocaleString() + ' tickets'}
           </span>
         )}
       </div>
@@ -113,7 +115,7 @@ export function TopNav() {
         <input type="file" ref={csatRef} accept=".csv" className="hidden" onChange={handleCsatUpload} />
 
         <button
-          style={{ background: '#166534', color: '#4ade80', border: '1px solid #14532d', padding: '6px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}
+          style={{ background: 'rgba(22,101,52,0.8)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.3)', padding: '6px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, backdropFilter: 'blur(8px)' }}
           onClick={handleSync} disabled={syncing}
         >
           <MdSync className={'w-3.5 h-3.5 ' + (syncing ? 'animate-spin' : '')} />
@@ -121,7 +123,7 @@ export function TopNav() {
         </button>
 
         <button
-          style={{ background: '#78350f', color: '#fbbf24', border: '1px solid #92400e', padding: '6px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}
+          style={{ background: 'rgba(120,53,15,0.8)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)', padding: '6px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, backdropFilter: 'blur(8px)' }}
           onClick={() => csatRef.current?.click()}
         >
           <MdStar className="w-3.5 h-3.5" />
@@ -129,7 +131,7 @@ export function TopNav() {
         </button>
 
         <button
-          style={{ background: '#1e3a8a', color: '#93c5fd', border: '1px solid #1e40af', padding: '6px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}
+          style={{ background: 'rgba(30,58,138,0.8)', color: '#93c5fd', border: '1px solid rgba(147,197,253,0.2)', padding: '6px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, backdropFilter: 'blur(8px)' }}
           onClick={() => fileRef.current?.click()} disabled={uploading}
         >
           <MdUpload className="w-3.5 h-3.5" />
@@ -138,14 +140,14 @@ export function TopNav() {
 
         <button
           onClick={() => { exportAgentsToExcel(agents); toast('Excel exported!', 'success') }}
-          style={{ padding: 7, borderRadius: 10, background: 'transparent', border: '1px solid #0d2147', color: '#3b82f6' }}
+          style={{ padding: 7, borderRadius: 10, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}
         >
           <MdFileDownload className="w-4 h-4" />
         </button>
 
         <button
           onClick={() => dispatch({ type: 'TOGGLE_DARK' })}
-          style={{ padding: 7, borderRadius: 10, background: 'transparent', border: '1px solid #0d2147', color: '#3b82f6' }}
+          style={{ padding: 7, borderRadius: 10, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}
         >
           {state.darkMode ? <MdLightMode className="w-4 h-4" /> : <MdDarkMode className="w-4 h-4" />}
         </button>
@@ -153,12 +155,12 @@ export function TopNav() {
         {state.user && (
           <div className="flex items-center gap-2 ml-1">
             {state.user.photoURL
-              ? <img src={state.user.photoURL} alt="" className="w-7 h-7 rounded-full" style={{ border: '2px solid #1e40af' }} />
-              : <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#1e3a8a', border: '2px solid #1e40af', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#93c5fd', fontSize: 11, fontWeight: 700 }}>
+              ? <img src={state.user.photoURL} alt="" className="w-7 h-7 rounded-full" style={{ border: '2px solid rgba(255,255,255,0.2)' }} />
+              : <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(30,58,138,0.8)', border: '2px solid rgba(147,197,253,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#93c5fd', fontSize: 11, fontWeight: 700 }}>
                   {(state.user.displayName || state.user.email || 'U').charAt(0).toUpperCase()}
                 </div>
             }
-            <button onClick={() => logout()} style={{ padding: 7, borderRadius: 10, background: 'transparent', border: '1px solid #0d2147', color: '#3b82f6' }}>
+            <button onClick={() => logout()} style={{ padding: 7, borderRadius: 10, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}>
               <MdLogout className="w-4 h-4" />
             </button>
           </div>
