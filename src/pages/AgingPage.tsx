@@ -70,14 +70,14 @@ export function AgingPage() {
   const [drilldown, setDrilldown] = useState<DrilldownState | null>(null)
 
   const unresolvedTickets = useMemo(() => {
-    return filteredTickets.filter(t => {
-      const s = t.status.toLowerCase()
-      return !s.includes('resolved') && !s.includes('closed')
-    }).filter(t => {
-      if (selectedGroups.length === 0) return true
-      return selectedGroups.includes(t.group)
-    })
-  }, [filteredTickets, selectedGroups])
+  return state.tickets.filter(t => {
+    const s = t.status.toLowerCase()
+    return !s.includes('resolved') && !s.includes('closed')
+  }).filter(t => {
+    if (selectedGroups.length === 0) return true
+    return selectedGroups.includes(t.group)
+  })
+}, [state.tickets, selectedGroups])
 
   const toggleGroup = (g: string) => {
     setSelectedGroups(prev => prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g])
