@@ -71,9 +71,9 @@ export function useFreshdeskSync() {
       let allTickets: Record<string, unknown>[] = []
       while (true) {
         const res = await fetch(
-          `https://${DOMAIN}/api/v2/tickets?per_page=100&page=${page}&include=stats`,
-          { headers }
-        )
+  `https://${DOMAIN}/api/v2/tickets?per_page=100&page=${page}&include=stats&updated_since=2019-01-01T00:00:00Z`,
+  { headers }
+)
         if (!res.ok) throw new Error(`Freshdesk API error: ${res.status}`)
         const data = await res.json()
         if (!data.length) break
