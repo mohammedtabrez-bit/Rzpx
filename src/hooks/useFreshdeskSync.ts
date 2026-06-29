@@ -71,31 +71,33 @@ export function useFreshdeskSync() {
     } catch { /* silent */ }
   }, [])
 
-  const fetchCsat = useCallback(async (headers: Record<string, string>): Promise<Record<number, number>> => {
-    const csatMap: Record<number, number> = {}
-    try {
-      let page = 1
-      while (page <= 50) {
-        const res = await fetch(
-          'https://' + DOMAIN + '/api/v2/surveys/satisfaction_ratings?per_page=100&page=' + page,
-          { headers }
-        )
-        if (!res.ok) break
-        const data = await res.json()
-        if (!data.length) break
-        data.forEach((r: any) => {
-          const rating = r.ratings?.default_question
-          const ticketId = r.ticket_id
-          if (ticketId && rating !== undefined) {
-            csatMap[ticketId] = rating > 0 ? 100 : 0
-          }
-        })
-        if (data.length < 100) break
-        page++
-      }
-    } catch { /* silent */ }
-    return csatMap
-  }, [])
+const fetchCsat = useCallback(async (headers: Record<string, string>): Promise<Record<number, number>> => {
+  const csatMap: Record<number, number> = {}
+  try {
+    let page = 1
+    while (page <= 50) {
+      const res = await fetch(
+        'https://' + DOMAIN + '/api/v2/surveys/satisfaction_ratings?per_page=100&page=' + page,
+        { headers }
+      )
+      if (!res.ok) break
+      const data = await res.json()
+      if (!data.length) break
+      data.forEach((r: any) => {
+        const rating = r.ratings?.default_question
+        const ticketId = r.ticket_id
+        if (ticketId && rating !== undefined) {
+          csatMap[Number(ticketId)] = rating > 0 ? 100 : 0
+        }
+      })
+      if (data.length < 100) break
+      page++
+    }
+    console.log('CSAT fetched:', Object.keys(csatMap).length, 'ratings')
+    console.log('Sample CSAT keys:', Object.keys(csatMap).slice(0, 5))
+  } catch (e) { console.error('CSAT fetch error:', e) }
+  return csatMap
+}, [])
 
   const fetchTickets = useCallback(async () => {
     if (!DOMAIN || !API_KEY) return
