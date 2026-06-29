@@ -5,6 +5,18 @@ const DOMAIN = (import.meta as any).env.VITE_FRESHDESK_DOMAIN
 const API_KEY = (import.meta as any).env.VITE_FRESHDESK_API_KEY
 const SYNC_TIMES = ['08:00', '14:00', '20:00']
 
+const GROUP_MAP: Record<number, string> = {
+  82000494118: 'Enterprise Support',
+  82000494119: 'Operations',
+  82000494120: 'Support',
+  82000494121: 'Banking Ops',
+  82000494122: 'X-Downtime',
+  82000494126: 'CXO Desk',
+  82000658304: 'XPayroll Enterprise',
+  82000658305: 'XPayroll Support',
+  82000658464: 'Xpayroll Operations',
+}
+
 export function useFreshdeskSync() {
   const { dispatch } = useApp()
   const [syncing, setSyncing] = useState(false)
@@ -39,7 +51,7 @@ export function useFreshdeskSync() {
           'Agent': (t.responder_id as string) || '',
           'Status': getStatus(t.status as number),
           'Priority': getPriority(t.priority as number),
-          'Group': t.group_id || '',
+          'Group': GROUP_MAP[t.group_id as number] || String(t.group_id || 'Unknown'),
           'Created At': t.created_at,
           'Resolved At': t.stats ? (t.stats as any).resolved_at : '',
           'First Response Time': t.stats ? (t.stats as any).first_responded_at : '',
@@ -53,7 +65,6 @@ export function useFreshdeskSync() {
           payload: { raw: mapped as any, name: `freshdesk-sync-${new Date().toISOString().slice(0,10)}.json` }
         })
         setLastSync(new Date())
-        localStorage.setItem('fd_last_sync', new Date().toISOString())
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sync failed')
