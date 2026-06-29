@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import { TopNav } from './TopNav'
 import { Sidebar } from './Sidebar'
 import { useApp } from '../../context/AppContext'
+import { SpaceBackground } from '../SpaceBackground'
 import clsx from 'clsx'
 import { MdStar, MdClose, MdOpenInNew } from 'react-icons/md'
 
@@ -36,52 +37,45 @@ export function Layout() {
     : null
 
   return (
-    <div id="dashboard-root" className="min-h-screen bg-[#060e1e]">
-      <TopNav />
-
-      {showBanner && state.tickets.length > 0 && (
-        <div style={{
-          position: 'fixed', top: 64, left: 0, right: 0, zIndex: 80,
-          background: 'linear-gradient(90deg, #78350f, #92400e)',
-          borderBottom: '1px solid #b45309',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: '8px 16px', gap: 12, flexWrap: 'wrap',
-        }}>
-          <MdStar style={{ color: '#fbbf24', width: 16, height: 16, flexShrink: 0 }} />
-          <span style={{ fontSize: 13, color: '#fef3c7', fontWeight: 500 }}>
-            {hoursAgo === null
-              ? 'CSAT data has never been uploaded — upload now for accurate satisfaction scores'
-              : 'CSAT data is ' + hoursAgo + 'h old — upload latest export for accurate scores'
-            }
-          </span>
-          <button
-            onClick={handleCsatClick}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#fbbf24', color: '#78350f', border: 'none', borderRadius: 6, padding: '4px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-          >
-            Open Freshdesk CSAT
-            <MdOpenInNew style={{ width: 12, height: 12 }} />
-          </button>
-          <span style={{ fontSize: 11, color: '#fde68a' }}>
-            Export CSV → come back → click Upload CSAT
-          </span>
-          <button
-            onClick={() => setShowBanner(false)}
-            style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#fbbf24', cursor: 'pointer', padding: 4 }}
-          >
-            <MdClose style={{ width: 16, height: 16 }} />
-          </button>
-        </div>
-      )}
-
-      <Sidebar />
-      <main className={clsx(
-        'transition-all duration-200 lg:pl-56',
-        showBanner && state.tickets.length > 0 ? 'pt-[104px]' : 'pt-16'
-      )}>
-        <div className="p-4 md:p-6">
-          <Outlet />
-        </div>
-      </main>
+    <div id="dashboard-root" style={{ minHeight: '100vh', background: '#010108', position: 'relative' }}>
+      <SpaceBackground />
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <TopNav />
+        {showBanner && state.tickets.length > 0 && (
+          <div style={{
+            position: 'fixed', top: 64, left: 0, right: 0, zIndex: 80,
+            background: 'rgba(120,53,15,0.95)',
+            backdropFilter: 'blur(8px)',
+            borderBottom: '1px solid #b45309',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '8px 16px', gap: 12, flexWrap: 'wrap',
+          }}>
+            <MdStar style={{ color: '#fbbf24', width: 16, height: 16, flexShrink: 0 }} />
+            <span style={{ fontSize: 13, color: '#fef3c7', fontWeight: 500 }}>
+              {hoursAgo === null
+                ? 'CSAT data has never been uploaded — upload now for accurate satisfaction scores'
+                : 'CSAT data is ' + hoursAgo + 'h old — upload latest export for accurate scores'
+              }
+            </span>
+            <button onClick={handleCsatClick} style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#fbbf24', color: '#78350f', border: 'none', borderRadius: 6, padding: '4px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+              Open Freshdesk CSAT <MdOpenInNew style={{ width: 12, height: 12 }} />
+            </button>
+            <span style={{ fontSize: 11, color: '#fde68a' }}>Export CSV → come back → click Upload CSAT</span>
+            <button onClick={() => setShowBanner(false)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#fbbf24', cursor: 'pointer', padding: 4 }}>
+              <MdClose style={{ width: 16, height: 16 }} />
+            </button>
+          </div>
+        )}
+        <Sidebar />
+        <main className={clsx(
+          'transition-all duration-200 lg:pl-56',
+          showBanner && state.tickets.length > 0 ? 'pt-[104px]' : 'pt-16'
+        )}>
+          <div className="p-4 md:p-6">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   )
 }
