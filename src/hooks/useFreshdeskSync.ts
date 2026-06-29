@@ -36,6 +36,10 @@ const GROUP_MAP: Record<number, string> = {
   82000662212: 'Technical Account Management - Leaders',
   82000661029: 'Technical Account Management - X',
   82000661706: 'TS Banking',
+  82000494122: 'X-Downtime',
+  82000658304: 'XPayroll Enterprise',
+  82000658305: 'XPayroll Support',
+  82000660633: 'Xpayroll Operations',
 }
 
 const AGENT_MAP: Record<number, string> = {}
@@ -48,13 +52,49 @@ export function useFreshdeskSync() {
 
   const fetchAgents = useCallback(async (headers: Record<string, string>) => {
     try {
-      const res = await fetch(`https://${DOMAIN}/api/v2/agents?per_page=100`, { headers })
-      if (!res.ok) return
-      const agents = await res.json()
-      agents.forEach((a: any) => {
-        AGENT_MAP[a.id] = a.contact?.name || a.name || String(a.id)
-      })
+      let agentPage = 1
+      while (agentPage <= 10) {
+        const res = await fetch(
+          'https://' + DOMAIN + '/api/v2/agents?per_page=100&page=' + agentPage,
+          { headers }
+        )
+        if (!res.ok) break
+        const agents = await res.json()
+        if (!agents.length) break
+        agents.forEach((a: any) => {
+          const name = a.contact?.name || a.name || null
+          if (name && a.id) AGENT_MAP[a.id] = name
+        })
+        if (agents.length < 100) break
+        agentPage++
+      }
     } catch { /* silent */ }
+  }, [])
+
+  const fetchCsat = useCallback(async (headers: Record<string, string>): Promise<Record<number, number>> => {
+    const csatMap: Record<number, number> = {}
+    try {
+      let page = 1
+      while (page <= 50) {
+        const res = await fetch(
+          'https://' + DOMAIN + '/api/v2/surveys/satisfaction_ratings?per_page=100&page=' + page,
+          { headers }
+        )
+        if (!res.ok) break
+        const data = await res.json()
+        if (!data.length) break
+        data.forEach((r: any) => {
+          const rating = r.ratings?.default_question
+          const ticketId = r.ticket_id
+          if (ticketId && rating !== undefined) {
+            csatMap[ticketId] = rating > 0 ? 100 : 0
+          }
+        })
+        if (data.length < 100) break
+        page++
+      }
+    } catch { /* silent */ }
+    return csatMap
   }, [])
 
   const fetchTickets = useCallback(async () => {
@@ -62,19 +102,23 @@ export function useFreshdeskSync() {
     setSyncing(true)
     setError(null)
     try {
-      const creds = btoa(`${API_KEY}:X`)
-      const headers = { 'Authorization': `Basic ${creds}` }
+      const creds = btoa(API_KEY + ':X')
+      const headers = { 'Authorization': 'Basic ' + creds }
 
       await fetchAgents(headers)
+
+      const [csatMap] = await Promise.all([
+        fetchCsat(headers),
+      ])
 
       let page = 1
       let allTickets: Record<string, unknown>[] = []
       while (true) {
         const res = await fetch(
-  `https://${DOMAIN}/api/v2/tickets?per_page=100&page=${page}&include=stats&updated_since=2019-01-01T00:00:00Z`,
-  { headers }
-)
-        if (!res.ok) throw new Error(`Freshdesk API error: ${res.status}`)
+          'https://' + DOMAIN + '/api/v2/tickets?per_page=100&page=' + page + '&include=stats',
+          { headers }
+        )
+        if (!res.ok) throw new Error('Freshdesk API error: ' + res.status)
         const data = await res.json()
         if (!data.length) break
         allTickets = [...allTickets, ...data]
@@ -84,30 +128,34 @@ export function useFreshdeskSync() {
       }
 
       if (allTickets.length) {
-        const mapped = allTickets.map((t: any) => ({
-          'Ticket ID': t.id,
-          'Agent': AGENT_MAP[t.responder_id] || String(t.responder_id || 'Unassigned'),
-          'Status': getStatus(t.status),
-          'Priority': getPriority(t.priority),
-          'Group': GROUP_MAP[t.group_id] || String(t.group_id || 'Unknown'),
-          'Created At': t.created_at,
-          'Resolved At': t.stats?.resolved_at || '',
-          'First Response Time': t.stats?.first_responded_at || '',
-          'CSAT': t.satisfaction_ratings?.[0]?.rating || '',
-          'SLA': t.nr_escalated === false ? 'Met' : t.nr_escalated === true ? 'Breached' : '',
-          'Requester': t.requester_id,
-          'Tags': Array.isArray(t.tags) ? t.tags.join(',') : '',
-          'Is Escalated': t.nr_escalated ? 'true' : 'false',
-        }))
+        const mapped = allTickets.map((t: any) => {
+          const csatScore = csatMap[t.id]
+          return {
+            'Ticket ID': t.id,
+            'Agent': AGENT_MAP[t.responder_id] || String(t.responder_id || 'Unassigned'),
+            'Status': getStatus(t.status),
+            'Priority': getPriority(t.priority),
+            'Group': GROUP_MAP[t.group_id] || String(t.group_id || 'Unknown'),
+            'Created At': t.created_at,
+            'Resolved At': t.stats?.resolved_at || '',
+            'First Response Time': t.stats?.first_responded_at || '',
+            'CSAT': csatScore !== undefined ? csatScore : '',
+            'SLA': t.nr_escalated === false ? 'Met' : t.nr_escalated === true ? 'Breached' : '',
+            'Requester': t.requester_id,
+            'Tags': Array.isArray(t.tags) ? t.tags.join(',') : '',
+            'Is Escalated': t.nr_escalated ? 'true' : 'false',
+          }
+        })
 
         dispatch({
           type: 'SET_RAW_DATA',
           payload: {
             raw: mapped as any,
-            name: `freshdesk-sync-${new Date().toISOString().slice(0, 10)}.json`
+            name: 'freshdesk-sync-' + new Date().toISOString().slice(0, 10) + '.json'
           }
         })
         setLastSync(new Date())
+        localStorage.setItem('fd_csat_last_upload', new Date().toISOString())
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sync failed')
@@ -115,14 +163,14 @@ export function useFreshdeskSync() {
     } finally {
       setSyncing(false)
     }
-  }, [dispatch, fetchAgents])
+  }, [dispatch, fetchAgents, fetchCsat])
 
   useEffect(() => {
     if (!DOMAIN || !API_KEY) return
     fetchTickets()
     const interval = setInterval(() => {
       const now = new Date()
-      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+      const timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0')
       if (SYNC_TIMES.includes(timeStr)) fetchTickets()
     }, 60000)
     return () => clearInterval(interval)
