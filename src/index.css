@@ -18,7 +18,7 @@
   .score-good { @apply badge bg-blue-900/30 text-blue-400; }
   .score-average { @apply badge bg-amber-900/30 text-amber-400; }
   .score-poor { @apply badge bg-red-900/30 text-red-400; }
-  .sidebar-item { @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-400 hover:bg-white/5 hover:text-white transition-all duration-150 cursor-pointer; }
+  .sidebar-item { @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-all duration-150 cursor-pointer; }
   .sidebar-item.active { background: rgba(37,99,235,0.2); color: #93c5fd; border: 1px solid rgba(37,99,235,0.3); }
 }
 
