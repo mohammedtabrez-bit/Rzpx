@@ -6,43 +6,31 @@ const API_KEY = (import.meta as any).env.VITE_FRESHDESK_API_KEY
 const SYNC_TIMES = ['08:00', '14:00', '20:00']
 
 const GROUP_MAP: Record<number, string> = {
-  82000661205: 'Banking Ops',
-  82000663640: 'Capital Cards',
-  82000663714: 'Cards Onboarding',
-  82000657001: 'CSM Helpdesk',
-  82000661633: 'CXO Desk',
   82000659804: 'Enterprise Support',
-  82000660871: 'Enterprise Tech Support',
-  82000659558: 'Escalation Desk [Tickets]',
-  82000656469: 'Escalations [Social]',
-  82000658464: 'FinOps',
-  82000661863: 'Form 16 clearance',
-  82000660928: 'Incident Comm',
-  82000662611: 'Integration-ICR',
-  82000494120: 'Integrations',
-  82000662930: 'NPS',
-  82000494118: 'Onboarding',
-  82000656606: 'Onboarding - Bank Facing Issues',
-  82000659789: 'Onboarding_DWT',
-  82000659790: 'Onboarding_SKIPDWT',
-  82000660722: 'Onboarding_VA Requests',
   82000494121: 'Operations',
-  82000660098: 'Partner Bank Communication',
-  82000660340: 'PSE',
-  82000662022: 'RZPL to RZPX Migration',
+  82000661633: 'CXO Desk',
   82000494119: 'Support',
-  82000494126: 'Tech Support',
-  82000661187: 'Tech Support Finops',
-  82000662212: 'Technical Account Management - Leaders',
-  82000661029: 'Technical Account Management - X',
-  82000661706: 'TS Banking',
   82000494122: 'X-Downtime',
+  82000661205: 'Banking Ops',
   82000658304: 'XPayroll Enterprise',
   82000658305: 'XPayroll Support',
   82000660633: 'Xpayroll Operations',
 }
 
+const ALLOWED_GROUPS = new Set([
+  'Enterprise Support',
+  'Operations',
+  'CXO Desk',
+  'Support',
+  'X-Downtime',
+  'Banking Ops',
+  'XPayroll Enterprise',
+  'XPayroll Support',
+  'Xpayroll Operations',
+])
+
 const AGENT_MAP: Record<number, string> = {}
+const ACTIVE_AGENTS = new Set<number>()
 
 export function useFreshdeskSync() {
   const { dispatch } = useApp()
@@ -63,7 +51,10 @@ export function useFreshdeskSync() {
         if (!agents.length) break
         agents.forEach((a: any) => {
           const name = a.contact?.name || a.name || null
-          if (name && a.id) AGENT_MAP[a.id] = name
+          if (name && a.id) {
+            AGENT_MAP[a.id] = name
+            if (a.active !== false) ACTIVE_AGENTS.add(a.id)
+          }
         })
         if (agents.length < 100) break
         agentPage++
@@ -125,24 +116,31 @@ export function useFreshdeskSync() {
       }
 
       if (allTickets.length) {
-        const mapped = allTickets.map((t: any) => {
-          const csatScore = csatMap[Number(t.id)]
-          return {
-            'Ticket ID': t.id,
-            'Agent': AGENT_MAP[t.responder_id] || String(t.responder_id || 'Unassigned'),
-            'Status': getStatus(t.status),
-            'Priority': getPriority(t.priority),
-            'Group': GROUP_MAP[t.group_id] || String(t.group_id || 'Unknown'),
-            'Created At': t.created_at,
-            'Resolved At': t.stats?.resolved_at || '',
-            'First Response Time': t.stats?.first_responded_at || '',
-            'CSAT': csatScore !== undefined ? csatScore : '',
-            'SLA': t.nr_escalated === false ? 'Met' : t.nr_escalated === true ? 'Breached' : '',
-            'Requester': t.requester_id,
-            'Tags': Array.isArray(t.tags) ? t.tags.join(',') : '',
-            'Is Escalated': t.nr_escalated ? 'true' : 'false',
-          }
-        })
+        const mapped = allTickets
+          .map((t: any) => {
+            const groupName = GROUP_MAP[t.group_id] || ''
+            const agentName = AGENT_MAP[t.responder_id] || ''
+            const isActive = ACTIVE_AGENTS.has(t.responder_id)
+            const csatScore = csatMap[Number(t.id)]
+            return {
+              'Ticket ID': t.id,
+              'Agent': agentName || (t.responder_id ? 'Agent_' + t.responder_id : 'Unassigned'),
+              'Agent Active': isActive ? 'true' : 'false',
+              'Status': getStatus(t.status),
+              'Priority': getPriority(t.priority),
+              'Group': groupName || 'Other',
+              'Created At': t.created_at,
+              'Resolved At': t.stats?.resolved_at || '',
+              'First Response Time': t.stats?.first_responded_at || '',
+              'CSAT': csatScore !== undefined ? csatScore : '',
+              'SLA': t.nr_escalated === false ? 'Met' : t.nr_escalated === true ? 'Breached' : '',
+              'Requester': t.requester_id,
+              'Tags': Array.isArray(t.tags) ? t.tags.join(',') : '',
+              'Is Escalated': t.nr_escalated ? 'true' : 'false',
+              'Group ID': t.group_id,
+            }
+          })
+          .filter((t: any) => ALLOWED_GROUPS.has(t['Group']))
 
         dispatch({
           type: 'SET_RAW_DATA',
