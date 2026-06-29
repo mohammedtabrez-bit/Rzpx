@@ -48,7 +48,8 @@ export function useFileUpload() {
 }
 
 function parseCSV(text: string): RawRow[] {
-  const lines = text.split(/?
+  const lines = text.split(/\r?\n/).filter(l => l.trim())
+?
 /).filter(l => l.trim())
   if (lines.length < 2) return []
   const headers = parseCSVLine(lines[0])
