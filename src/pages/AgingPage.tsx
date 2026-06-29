@@ -95,15 +95,28 @@ export function AgingPage() {
       if (view === 'agent') return t.agent === label
       return false
     }).map(t => ({
-      id: t.id,
-      agent: t.agent,
-      group: t.group,
-      status: t.status,
-      priority: t.priority,
-      createdAt: t.createdAt,
-      age: getDayAge(t.createdAt || new Date()),
+      id: t.id, agent: t.agent, group: t.group,
+      status: t.status, priority: t.priority,
+      createdAt: t.createdAt, age: getDayAge(t.createdAt || new Date()),
     }))
     if (tickets.length > 0) setDrilldown({ label, bucket, tickets })
+  }
+
+  const handleTotalClick = (label: string) => {
+    const tickets = unresolvedTickets.filter(t => {
+      if (view === 'date') {
+        const dateKey = t.createdAt ? t.createdAt.toISOString().slice(0, 10) : ''
+        return dateKey === label
+      }
+      if (view === 'group') return t.group === label
+      if (view === 'agent') return t.agent === label
+      return false
+    }).map(t => ({
+      id: t.id, agent: t.agent, group: t.group,
+      status: t.status, priority: t.priority,
+      createdAt: t.createdAt, age: getDayAge(t.createdAt || new Date()),
+    }))
+    if (tickets.length > 0) setDrilldown({ label: label + ' — All Buckets', bucket: 'All', tickets })
   }
 
   const dateAging = useMemo(() => {
@@ -242,8 +255,7 @@ export function AgingPage() {
         {BUCKETS.map(b => (
           <div key={b.label} style={{ ...cardStyle, padding: '12px 14px', borderTop: '2px solid ' + getBucketColor(b.label), cursor: 'pointer', transition: 'transform 0.15s' }}
             onClick={() => {
-              const tickets = unresolvedTickets
-                .filter(t => getBucket(getDayAge(t.createdAt || new Date())) === b.label)
+              const tickets = unresolvedTickets.filter(t => getBucket(getDayAge(t.createdAt || new Date())) === b.label)
                 .map(t => ({ id: t.id, agent: t.agent, group: t.group, status: t.status, priority: t.priority, createdAt: t.createdAt, age: getDayAge(t.createdAt || new Date()) }))
               if (tickets.length) setDrilldown({ label: b.label, bucket: b.label, tickets })
             }}
@@ -316,26 +328,15 @@ export function AgingPage() {
                     )
                   })}
                   <td style={{ padding: '9px 14px', textAlign: 'center' }}>
-  <button
-    onClick={() => {
-      const tickets = unresolvedTickets.filter(t => {
-        if (view === 'date') {
-          const dateKey = t.createdAt ? t.createdAt.toISOString().slice(0, 10) : ''
-          return dateKey === row.label
-        }
-        if (view === 'group') return t.group === row.label
-        if (view === 'agent') return t.agent === row.label
-        return false
-      }).map(t => ({ id: t.id, agent: t.agent, group: t.group, status: t.status, priority: t.priority, createdAt: t.createdAt, age: getDayAge(t.createdAt || new Date()) }))
-      if (tickets.length) setDrilldown({ label: row.label + ' — All', bucket: 'All Buckets', tickets })
-    }}
-    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#60a5fa', fontWeight: 700, fontSize: 13, textDecoration: 'underline', textDecorationStyle: 'dotted' }}
-    onMouseEnter={e => (e.currentTarget.style.color = '#93c5fd')}
-    onMouseLeave={e => (e.currentTarget.style.color = '#60a5fa')}
-  >
-    {row.total}
-  </button>
-</td>
+                    <button
+                      onClick={() => handleTotalClick(row.label)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#60a5fa', fontWeight: 700, fontSize: 13, textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#93c5fd')}
+                      onMouseLeave={e => (e.currentTarget.style.color = '#60a5fa')}
+                    >
+                      {row.total}
+                    </button>
+                  </td>
                 </tr>
               ))}
               <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)', background: 'rgba(4,10,20,0.5)' }}>
@@ -344,8 +345,7 @@ export function AgingPage() {
                   <td key={b.label} style={{ padding: '10px 10px', textAlign: 'center' }}>
                     <button
                       onClick={() => {
-                        const tickets = unresolvedTickets
-                          .filter(t => getBucket(getDayAge(t.createdAt || new Date())) === b.label)
+                        const tickets = unresolvedTickets.filter(t => getBucket(getDayAge(t.createdAt || new Date())) === b.label)
                           .map(t => ({ id: t.id, agent: t.agent, group: t.group, status: t.status, priority: t.priority, createdAt: t.createdAt, age: getDayAge(t.createdAt || new Date()) }))
                         if (tickets.length) setDrilldown({ label: 'All — ' + b.label, bucket: b.label, tickets })
                       }}
@@ -355,7 +355,19 @@ export function AgingPage() {
                     </button>
                   </td>
                 ))}
-                <td style={{ padding: '10px 14px', textAlign: 'center', color: '#fff', fontWeight: 800, fontSize: 14 }}>{unresolvedTickets.length}</td>
+                <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                  <button
+                    onClick={() => {
+                      const tickets = unresolvedTickets.map(t => ({ id: t.id, agent: t.agent, group: t.group, status: t.status, priority: t.priority, createdAt: t.createdAt, age: getDayAge(t.createdAt || new Date()) }))
+                      if (tickets.length) setDrilldown({ label: 'All Unresolved Tickets', bucket: 'All', tickets })
+                    }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', fontWeight: 800, fontSize: 14, textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = '#93c5fd')}
+                    onMouseLeave={e => (e.currentTarget.style.color = '#fff')}
+                  >
+                    {unresolvedTickets.length}
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -373,7 +385,7 @@ export function AgingPage() {
               <div>
                 <div style={{ fontWeight: 700, fontSize: 15, color: '#fff' }}>
                   {drilldown.label}
-                  <span style={{ marginLeft: 8, fontSize: 12, color: getBucketColor(drilldown.bucket), background: getBucketColor(drilldown.bucket) + '22', padding: '2px 8px', borderRadius: 999 }}>
+                  <span style={{ marginLeft: 8, fontSize: 12, color: getBucketColor(drilldown.bucket) !== '#94a3b8' ? getBucketColor(drilldown.bucket) : '#60a5fa', background: 'rgba(96,165,250,0.1)', padding: '2px 8px', borderRadius: 999 }}>
                     {drilldown.bucket}
                   </span>
                 </div>
