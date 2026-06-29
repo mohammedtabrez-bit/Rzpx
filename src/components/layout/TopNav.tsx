@@ -77,14 +77,13 @@ export function TopNav() {
       style={{ background: '#040a14', borderBottom: '1px solid #0d2147' }}>
 
       <div className="flex items-center gap-2 mr-2">
-        <div className="flex items-center gap-1">
-          <div style={{ width: 6, height: 14, background: '#2563eb', borderRadius: 2 }} />
-          <span style={{ color: '#fff', fontWeight: 800, fontSize: 16, letterSpacing: '-0.5px' }}>Razorpay</span>
-          <span style={{ color: '#f97316', fontWeight: 800, fontSize: 16 }}>X</span>
-        </div>
-        <div style={{ width: 1, height: 20, background: '#0d2147', margin: '0 4px' }} />
-        <span style={{ color: '#3b82f6', fontSize: 12, fontWeight: 600 }}>Dashboard</span>
-      </div>
+        <div className="flex items-center gap-2">
+  <div style={{ width: 4, height: 22, background: 'linear-gradient(180deg,#3b82f6,#6366f1)', borderRadius: 3 }} />
+  <span style={{ color: '#fff', fontWeight: 800, fontSize: 22, letterSpacing: '-1px', fontFamily: 'Space Grotesk, sans-serif' }}>Razorpay</span>
+  <span style={{ color: '#f97316', fontWeight: 800, fontSize: 22, letterSpacing: '-1px', fontFamily: 'Space Grotesk, sans-serif' }}>X</span>
+  <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 14, margin: '0 2px' }}>|</span>
+  <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 500, letterSpacing: '0.05em' }}>Dashboard</span>
+</div>
 
       <button
         className="p-2 rounded-xl text-blue-400 hover:bg-blue-900/30 lg:hidden"
