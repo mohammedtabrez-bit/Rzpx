@@ -315,7 +315,27 @@ export function AgingPage() {
                       </td>
                     )
                   })}
-                  <td style={{ padding: '9px 14px', textAlign: 'center', color: '#60a5fa', fontWeight: 700 }}>{row.total}</td>
+                  <td style={{ padding: '9px 14px', textAlign: 'center' }}>
+  <button
+    onClick={() => {
+      const tickets = unresolvedTickets.filter(t => {
+        if (view === 'date') {
+          const dateKey = t.createdAt ? t.createdAt.toISOString().slice(0, 10) : ''
+          return dateKey === row.label
+        }
+        if (view === 'group') return t.group === row.label
+        if (view === 'agent') return t.agent === row.label
+        return false
+      }).map(t => ({ id: t.id, agent: t.agent, group: t.group, status: t.status, priority: t.priority, createdAt: t.createdAt, age: getDayAge(t.createdAt || new Date()) }))
+      if (tickets.length) setDrilldown({ label: row.label + ' — All', bucket: 'All Buckets', tickets })
+    }}
+    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#60a5fa', fontWeight: 700, fontSize: 13, textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+    onMouseEnter={e => (e.currentTarget.style.color = '#93c5fd')}
+    onMouseLeave={e => (e.currentTarget.style.color = '#60a5fa')}
+  >
+    {row.total}
+  </button>
+</td>
                 </tr>
               ))}
               <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)', background: 'rgba(4,10,20,0.5)' }}>
