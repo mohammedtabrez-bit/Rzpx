@@ -285,3 +285,141 @@ export function AgingPage() {
                 {BUCKETS.map(b => (
                   <th key={b.label} style={{ padding: '10px 10px', textAlign: 'center', color: getBucketColor(b.label), fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{b.label}</th>
                 ))}
+                <th style={{ padding: '10px 14px', textAlign: 'center', color: '#60a5fa', fontSize: 11, fontWeight: 700 }}>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentRows.map((row, i) => (
+                <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <td style={{ padding: '9px 14px', color: '#93c5fd', fontWeight: 500, whiteSpace: 'nowrap' }}>{row.label}</td>
+                  {BUCKETS.map(b => {
+                    const val = row.buckets[b.label] || 0
+                    const pct = row.total > 0 ? val / row.total : 0
+                    return (
+                      <td key={b.label} style={{ padding: '9px 10px', textAlign: 'center' }}>
+                        {val > 0 ? (
+                          <button
+                            onClick={() => handleCellClick(row.label, b.label)}
+                            style={{ display: 'inline-block', minWidth: 32, padding: '3px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', background: getBucketColor(b.label) + Math.round(pct * 40 + 20).toString(16).padStart(2, '0'), color: getBucketColor(b.label), fontWeight: 700, fontSize: 12, transition: 'transform 0.1s' }}
+                            onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.15)')}
+                            onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+                          >
+                            {val}
+                          </button>
+                        ) : (
+                          <span style={{ color: 'rgba(255,255,255,0.15)' }}>—</span>
+                        )}
+                      </td>
+                    )
+                  })}
+                  <td style={{ padding: '9px 14px', textAlign: 'center', color: '#60a5fa', fontWeight: 700 }}>{row.total}</td>
+                </tr>
+              ))}
+              <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)', background: 'rgba(4,10,20,0.5)' }}>
+                <td style={{ padding: '10px 14px', color: '#fff', fontWeight: 800, fontSize: 12 }}>TOTAL</td>
+                {BUCKETS.map(b => (
+                  <td key={b.label} style={{ padding: '10px 10px', textAlign: 'center' }}>
+                    <button
+                      onClick={() => {
+                        const tickets = unresolvedTickets
+                          .filter(t => getBucket(getDayAge(t.createdAt || new Date())) === b.label)
+                          .map(t => ({ id: t.id, agent: t.agent, group: t.group, status: t.status, priority: t.priority, createdAt: t.createdAt, age: getDayAge(t.createdAt || new Date()) }))
+                        if (tickets.length) setDrilldown({ label: 'All — ' + b.label, bucket: b.label, tickets })
+                      }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: getBucketColor(b.label), fontWeight: 800, fontSize: 13 }}
+                    >
+                      {totals[b.label] || 0}
+                    </button>
+                  </td>
+                ))}
+                <td style={{ padding: '10px 14px', textAlign: 'center', color: '#fff', fontWeight: 800, fontSize: 14 }}>{unresolvedTickets.length}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {drilldown && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => setDrilldown(null)}
+        >
+          <div style={{ background: '#0a1628', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, width: '100%', maxWidth: 800, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#fff' }}>
+                  {drilldown.label}
+                  <span style={{ marginLeft: 8, fontSize: 12, color: getBucketColor(drilldown.bucket), background: getBucketColor(drilldown.bucket) + '22', padding: '2px 8px', borderRadius: 999 }}>
+                    {drilldown.bucket}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>
+                  {drilldown.tickets.length} tickets — click ticket number to open in Freshdesk
+                </div>
+              </div>
+              <button onClick={() => setDrilldown(null)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: 6, cursor: 'pointer', color: 'rgba(255,255,255,0.6)' }}>
+                <MdClose className="w-4 h-4" />
+              </button>
+            </div>
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead style={{ position: 'sticky', top: 0, background: '#040a14', zIndex: 1 }}>
+                  <tr>
+                    <th style={{ padding: '10px 16px', textAlign: 'left', color: '#1e40af', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Ticket #</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'left', color: '#1e40af', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Agent</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'left', color: '#1e40af', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Group</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'left', color: '#1e40af', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Status</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'left', color: '#1e40af', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Priority</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'center', color: '#1e40af', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Age</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'left', color: '#1e40af', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {drilldown.tickets.map((t, i) => (
+                    <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <td style={{ padding: '9px 16px' }}>
+                        <a href={FD_BASE + '/a/tickets/' + String(t.id)} target="_blank" rel="noopener noreferrer"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#60a5fa', fontWeight: 700, textDecoration: 'none', background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.2)', padding: '3px 8px', borderRadius: 6 }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(96,165,250,0.2)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(96,165,250,0.1)')}
+                        >
+                          {'#' + String(t.id)}
+                          <MdOpenInNew style={{ width: 10, height: 10 }} />
+                        </a>
+                      </td>
+                      <td style={{ padding: '9px 12px', color: '#93c5fd' }}>{t.agent || 'Unassigned'}</td>
+                      <td style={{ padding: '9px 12px', color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>{t.group}</td>
+                      <td style={{ padding: '9px 12px' }}>
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: t.status.toLowerCase().includes('open') ? 'rgba(249,115,22,0.15)' : 'rgba(96,165,250,0.1)', color: t.status.toLowerCase().includes('open') ? '#f97316' : '#60a5fa' }}>
+                          {t.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: '9px 12px' }}>
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: t.priority.toLowerCase() === 'urgent' ? 'rgba(239,68,68,0.15)' : t.priority.toLowerCase() === 'high' ? 'rgba(249,115,22,0.15)' : 'rgba(96,165,250,0.1)', color: t.priority.toLowerCase() === 'urgent' ? '#ef4444' : t.priority.toLowerCase() === 'high' ? '#f97316' : '#60a5fa' }}>
+                          {t.priority}
+                        </span>
+                      </td>
+                      <td style={{ padding: '9px 12px', textAlign: 'center' }}>
+                        <span style={{ color: getBucketColor(getBucket(t.age)), fontWeight: 700 }}>{t.age}d</span>
+                      </td>
+                      <td style={{ padding: '9px 12px', color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>
+                        {t.createdAt ? t.createdAt.toLocaleDateString('en-IN') : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
