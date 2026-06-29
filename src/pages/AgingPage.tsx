@@ -9,8 +9,8 @@ const BUCKETS = [
   { label: '06-10 Days', min: 6, max: 10 },
   { label: '11-15 Days', min: 11, max: 15 },
   { label: '16-20 Days', min: 16, max: 20 },
-  { label: '21-30 Days', min: 21, max: 30 },
-  { label: '30+ Days', min: 31, max: 9999 },
+  { label: '21-30 Days', min: 21, max: 29 },
+  { label: '30+ Days', min: 30, max: 9999 },
 ]
 
 const ALLOWED_GROUPS = [
