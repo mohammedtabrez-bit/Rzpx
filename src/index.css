@@ -31,3 +31,15 @@
   .scrollbar-thin::-webkit-scrollbar { width: 5px; height: 5px; }
   .scrollbar-thin::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 99px; }
 }
+input[type="date"] {
+  color-scheme: dark;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.5) sepia(1) saturate(2) hue-rotate(180deg);
+  cursor: pointer;
+}
+
+input[type="date"]::-webkit-datetime-edit {
+  color: #93c5fd;
+}
