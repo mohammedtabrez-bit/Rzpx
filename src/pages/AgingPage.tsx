@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useApp } from '../context/AppContext'
-import { MdFileDownload } from 'react-icons/md'
+import { MdFileDownload, MdClose, MdOpenInNew } from 'react-icons/md'
 import * as XLSX from 'xlsx'
 
 const BUCKETS = [
@@ -18,10 +18,11 @@ const ALLOWED_GROUPS = [
   'X-Downtime', 'Banking Ops', 'XPayroll Enterprise', 'XPayroll Support', 'Xpayroll Operations',
 ]
 
+const FD_BASE = 'https://razorpayx.freshdesk.com'
+
 function getDayAge(createdAt: Date): number {
   const now = new Date()
-  const diff = now.getTime() - createdAt.getTime()
-  return Math.floor(diff / (1000 * 60 * 60 * 24))
+  return Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24))
 }
 
 function getBucket(age: number): string {
@@ -44,12 +45,29 @@ function getBucketColor(label: string): string {
   return map[label] || '#94a3b8'
 }
 
+interface DrilldownTicket {
+  id: string | number
+  agent: string
+  group: string
+  status: string
+  priority: string
+  createdAt: Date | null
+  age: number
+}
+
+interface DrilldownState {
+  label: string
+  bucket: string
+  tickets: DrilldownTicket[]
+}
+
 export function AgingPage() {
   const { state } = useApp()
   const { filteredTickets } = state
   const [selectedGroups, setSelectedGroups] = useState<string[]>([])
   const [groupOpen, setGroupOpen] = useState(false)
   const [view, setView] = useState<'date' | 'group' | 'agent'>('date')
+  const [drilldown, setDrilldown] = useState<DrilldownState | null>(null)
 
   const unresolvedTickets = useMemo(() => {
     return filteredTickets.filter(t => {
@@ -65,72 +83,80 @@ export function AgingPage() {
     setSelectedGroups(prev => prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g])
   }
 
-  // Date-wise aging
+  const handleCellClick = (label: string, bucket: string) => {
+    const tickets = unresolvedTickets.filter(t => {
+      const age = getDayAge(t.createdAt || new Date())
+      if (getBucket(age) !== bucket) return false
+      if (view === 'date') {
+        const dateKey = t.createdAt ? t.createdAt.toISOString().slice(0, 10) : ''
+        return dateKey === label
+      }
+      if (view === 'group') return t.group === label
+      if (view === 'agent') return t.agent === label
+      return false
+    }).map(t => ({
+      id: t.id,
+      agent: t.agent,
+      group: t.group,
+      status: t.status,
+      priority: t.priority,
+      createdAt: t.createdAt,
+      age: getDayAge(t.createdAt || new Date()),
+    }))
+    if (tickets.length > 0) setDrilldown({ label, bucket, tickets })
+  }
+
   const dateAging = useMemo(() => {
     const map: Record<string, Record<string, number>> = {}
     unresolvedTickets.forEach(t => {
       if (!t.createdAt) return
       const dateKey = t.createdAt.toISOString().slice(0, 10)
-      const age = getDayAge(t.createdAt)
-      const bucket = getBucket(age)
+      const bucket = getBucket(getDayAge(t.createdAt))
       if (!map[dateKey]) map[dateKey] = {}
       map[dateKey][bucket] = (map[dateKey][bucket] || 0) + 1
     })
     return Object.keys(map).sort().reverse().map(date => ({
-      date,
-      buckets: map[date],
+      label: date, buckets: map[date],
       total: Object.values(map[date]).reduce((a, b) => a + b, 0),
     }))
   }, [unresolvedTickets])
 
-  // Group-wise aging
   const groupAging = useMemo(() => {
     const map: Record<string, Record<string, number>> = {}
     unresolvedTickets.forEach(t => {
       const grp = t.group || 'Unknown'
-      const age = getDayAge(t.createdAt || new Date())
-      const bucket = getBucket(age)
+      const bucket = getBucket(getDayAge(t.createdAt || new Date()))
       if (!map[grp]) map[grp] = {}
       map[grp][bucket] = (map[grp][bucket] || 0) + 1
     })
-    return Object.entries(map).sort((a, b) => {
-      const ta = Object.values(a[1]).reduce((x, y) => x + y, 0)
-      const tb = Object.values(b[1]).reduce((x, y) => x + y, 0)
-      return tb - ta
-    }).map(([group, buckets]) => ({
-      group,
-      buckets,
+    return Object.entries(map).sort((a, b) =>
+      Object.values(b[1]).reduce((x, y) => x + y, 0) - Object.values(a[1]).reduce((x, y) => x + y, 0)
+    ).map(([group, buckets]) => ({
+      label: group, buckets,
       total: Object.values(buckets).reduce((a, b) => a + b, 0),
     }))
   }, [unresolvedTickets])
 
-  // Agent-wise aging
   const agentAging = useMemo(() => {
     const map: Record<string, Record<string, number>> = {}
     unresolvedTickets.forEach(t => {
       const agent = t.agent || 'Unassigned'
-      const age = getDayAge(t.createdAt || new Date())
-      const bucket = getBucket(age)
+      const bucket = getBucket(getDayAge(t.createdAt || new Date()))
       if (!map[agent]) map[agent] = {}
       map[agent][bucket] = (map[agent][bucket] || 0) + 1
     })
-    return Object.entries(map).sort((a, b) => {
-      const ta = Object.values(a[1]).reduce((x, y) => x + y, 0)
-      const tb = Object.values(b[1]).reduce((x, y) => x + y, 0)
-      return tb - ta
-    }).map(([agent, buckets]) => ({
-      agent,
-      buckets,
+    return Object.entries(map).sort((a, b) =>
+      Object.values(b[1]).reduce((x, y) => x + y, 0) - Object.values(a[1]).reduce((x, y) => x + y, 0)
+    ).map(([agent, buckets]) => ({
+      label: agent, buckets,
       total: Object.values(buckets).reduce((a, b) => a + b, 0),
     }))
   }, [unresolvedTickets])
 
-  // Totals
   const totals = useMemo(() => {
     const t: Record<string, number> = {}
     unresolvedTickets.forEach(ticket => {
-      const age = getDayAge(ticket.createdAt || new Date())
-      const bucket = getBucket(age)
+      const bucket = getBucket(getDayAge(ticket.createdAt || new Date()))
       t[bucket] = (t[bucket] || 0) + 1
     })
     return t
@@ -138,7 +164,7 @@ export function AgingPage() {
 
   const exportExcel = () => {
     const rows = dateAging.map(row => {
-      const r: Record<string, string | number> = { Date: row.date }
+      const r: Record<string, string | number> = { Date: row.label }
       BUCKETS.forEach(b => { r[b.label] = row.buckets[b.label] || 0 })
       r['Total'] = row.total
       return r
@@ -151,6 +177,7 @@ export function AgingPage() {
 
   const inputStyle = { background: '#040a14', border: '1px solid rgba(255,255,255,0.1)', color: '#93c5fd', fontSize: 12, padding: '6px 10px', borderRadius: 8, outline: 'none' }
   const cardStyle = { background: 'rgba(10,22,40,0.7)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 20 }
+  const currentRows = view === 'date' ? dateAging : view === 'group' ? groupAging : agentAging
 
   if (!filteredTickets.length) {
     return (
@@ -161,78 +188,6 @@ export function AgingPage() {
       </div>
     )
   }
-
-  const renderTable = (
-    rows: { label: string; buckets: Record<string, number>; total: number }[]
-  ) => (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-        <thead>
-          <tr style={{ background: 'rgba(4,10,20,0.8)' }}>
-            <th style={{ padding: '10px 14px', textAlign: 'left', color: '#1e40af', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
-              {view === 'date' ? 'Date' : view === 'group' ? 'Group' : 'Agent'}
-            </th>
-            {BUCKETS.map(b => (
-              <th key={b.label} style={{ padding: '10px 10px', textAlign: 'center', color: getBucketColor(b.label), fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
-                {b.label}
-              </th>
-            ))}
-            <th style={{ padding: '10px 14px', textAlign: 'center', color: '#60a5fa', fontSize: 11, fontWeight: 700 }}>Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            >
-              <td style={{ padding: '9px 14px', color: '#93c5fd', fontWeight: 500, whiteSpace: 'nowrap' }}>{row.label}</td>
-              {BUCKETS.map(b => {
-                const val = row.buckets[b.label] || 0
-                const pct = row.total > 0 ? val / row.total : 0
-                return (
-                  <td key={b.label} style={{ padding: '9px 10px', textAlign: 'center' }}>
-                    {val > 0 ? (
-                      <span style={{
-                        display: 'inline-block', minWidth: 28, padding: '2px 8px', borderRadius: 6,
-                        background: getBucketColor(b.label) + Math.round(pct * 40 + 15).toString(16).padStart(2, '0'),
-                        color: getBucketColor(b.label), fontWeight: 600, fontSize: 12,
-                      }}>
-                        {val}
-                      </span>
-                    ) : (
-                      <span style={{ color: 'rgba(255,255,255,0.15)' }}>—</span>
-                    )}
-                  </td>
-                )
-              })}
-              <td style={{ padding: '9px 14px', textAlign: 'center', color: '#60a5fa', fontWeight: 700 }}>{row.total}</td>
-            </tr>
-          ))}
-          {/* Totals row */}
-          <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)', background: 'rgba(4,10,20,0.5)' }}>
-            <td style={{ padding: '10px 14px', color: '#fff', fontWeight: 800, fontSize: 12 }}>TOTAL</td>
-            {BUCKETS.map(b => (
-              <td key={b.label} style={{ padding: '10px 10px', textAlign: 'center' }}>
-                <span style={{ color: getBucketColor(b.label), fontWeight: 800, fontSize: 13 }}>
-                  {totals[b.label] || 0}
-                </span>
-              </td>
-            ))}
-            <td style={{ padding: '10px 14px', textAlign: 'center', color: '#fff', fontWeight: 800, fontSize: 14 }}>
-              {unresolvedTickets.length}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  )
-
-  const currentRows = view === 'date'
-    ? dateAging.map(r => ({ label: r.date, buckets: r.buckets, total: r.total }))
-    : view === 'group'
-    ? groupAging.map(r => ({ label: r.group, buckets: r.buckets, total: r.total }))
-    : agentAging.map(r => ({ label: r.agent, buckets: r.buckets, total: r.total }))
 
   return (
     <div>
@@ -245,16 +200,13 @@ export function AgingPage() {
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {/* View toggle */}
           <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 3, border: '1px solid rgba(255,255,255,0.08)' }}>
             {(['date', 'group', 'agent'] as const).map(v => (
-              <button key={v} onClick={() => setView(v)} style={{ padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', background: view === v ? '#1d4ed8' : 'transparent', color: view === v ? '#fff' : 'rgba(255,255,255,0.4)', textTransform: 'capitalize' }}>
+              <button key={v} onClick={() => setView(v)} style={{ padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', background: view === v ? '#1d4ed8' : 'transparent', color: view === v ? '#fff' : 'rgba(255,255,255,0.4)' }}>
                 {v === 'date' ? 'By Date' : v === 'group' ? 'By Group' : 'By Agent'}
               </button>
             ))}
           </div>
-
-          {/* Group filter */}
           <div style={{ position: 'relative' }}>
             <button onClick={() => setGroupOpen(o => !o)} style={{ ...inputStyle, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
               <span style={{ color: selectedGroups.length ? '#60a5fa' : 'rgba(255,255,255,0.4)' }}>
@@ -280,17 +232,24 @@ export function AgingPage() {
               </div>
             )}
           </div>
-
           <button onClick={exportExcel} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', background: 'rgba(30,58,138,0.8)', color: '#93c5fd', border: '1px solid rgba(147,197,253,0.2)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
             <MdFileDownload className="w-4 h-4" /> Export Excel
           </button>
         </div>
       </div>
 
-      {/* Summary KPI cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, marginBottom: 20 }}>
         {BUCKETS.map(b => (
-          <div key={b.label} style={{ ...cardStyle, padding: '12px 14px', borderTop: '2px solid ' + getBucketColor(b.label) }}>
+          <div key={b.label} style={{ ...cardStyle, padding: '12px 14px', borderTop: '2px solid ' + getBucketColor(b.label), cursor: 'pointer', transition: 'transform 0.15s' }}
+            onClick={() => {
+              const tickets = unresolvedTickets
+                .filter(t => getBucket(getDayAge(t.createdAt || new Date())) === b.label)
+                .map(t => ({ id: t.id, agent: t.agent, group: t.group, status: t.status, priority: t.priority, createdAt: t.createdAt, age: getDayAge(t.createdAt || new Date()) }))
+              if (tickets.length) setDrilldown({ label: b.label, bucket: b.label, tickets })
+            }}
+            onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
+            onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
+          >
             <div style={{ fontSize: 10, fontWeight: 700, color: getBucketColor(b.label), textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{b.label}</div>
             <div style={{ fontSize: 24, fontWeight: 800, color: '#fff' }}>{totals[b.label] || 0}</div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>
@@ -300,7 +259,6 @@ export function AgingPage() {
         ))}
       </div>
 
-      {/* Selected group tags */}
       {selectedGroups.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
           {selectedGroups.map(g => (
@@ -312,15 +270,18 @@ export function AgingPage() {
         </div>
       )}
 
-      {/* Main table */}
       <div style={cardStyle}>
-        <div style={{ fontWeight: 700, fontSize: 14, color: '#93c5fd', marginBottom: 16 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: '#93c5fd', marginBottom: 4 }}>
           {view === 'date' ? 'Date-wise Aging' : view === 'group' ? 'Group-wise Aging' : 'Agent-wise Aging'}
         </div>
-        {currentRows.length > 0 ? renderTable(currentRows) : (
-          <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.3)' }}>No unresolved tickets found</div>
-        )}
-      </div>
-    </div>
-  )
-}
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginBottom: 16 }}>Click any number to see ticket details</div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr style={{ background: 'rgba(4,10,20,0.8)' }}>
+                <th style={{ padding: '10px 14px', textAlign: 'left', color: '#1e40af', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
+                  {view === 'date' ? 'Date' : view === 'group' ? 'Group' : 'Agent'}
+                </th>
+                {BUCKETS.map(b => (
+                  <th key={b.label} style={{ padding: '10px 10px', textAlign: 'center', color: getBucketColor(b.label), fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{b.label}</th>
+                ))}
