@@ -131,7 +131,8 @@ const fetchCsat = useCallback(async (headers: Record<string, string>): Promise<R
 
       if (allTickets.length) {
         const mapped = allTickets.map((t: any) => {
-          const csatScore = csatMap[t.id]
+          const csatScore = csatMap[Number(t.id)]
+if (Number(t.id) === 1152694) console.log('Found CSAT ticket 1152694:', csatScore)
           return {
             'Ticket ID': t.id,
             'Agent': AGENT_MAP[t.responder_id] || String(t.responder_id || 'Unassigned'),
