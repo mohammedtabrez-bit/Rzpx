@@ -134,4 +134,40 @@ export function FilterBar() {
             style={{ ...inputStyle, width: 150 }}
             placeholder="Agent name..."
             value={localFilters.search}
-            onChange={e => set({ search:
+            onChange={e => set({ search: e.target.value })}
+            onKeyDown={e => e.key === 'Enter' && handleSearch()}
+          />
+        </div>
+
+        <button
+          onClick={handleSearch}
+          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 14px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', marginTop: 14 }}
+        >
+          <MdSearch className="w-4 h-4" /> Search
+        </button>
+
+        <button
+          onClick={handleClear}
+          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: 'transparent', color: '#3b82f6', border: '1px solid #0d2147', borderRadius: 8, fontSize: 12, cursor: 'pointer', marginTop: 14 }}
+        >
+          <MdClear className="w-3.5 h-3.5" /> Clear
+        </button>
+
+        <div style={{ marginLeft: 'auto', fontSize: 12, color: '#1e40af', marginTop: 14 }}>
+          {state.filteredTickets.length.toLocaleString()} of {state.tickets.length.toLocaleString()} tickets
+        </div>
+      </div>
+
+      {selectedGroups.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+          {selectedGroups.map(g => (
+            <span key={g} style={{ fontSize: 11, background: '#1e3a8a', color: '#93c5fd', border: '1px solid #1e40af', padding: '3px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 5 }}>
+              {g}
+              <button onClick={() => toggleGroup(g)} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: 13, lineHeight: 1 }}>×</button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
