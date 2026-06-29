@@ -1,190 +1,85 @@
-import { useRef } from 'react'
-import {
-  MdMenu, MdDarkMode, MdLightMode, MdUpload,
-  MdFileDownload, MdLogout, MdTableChart, MdSync, MdStar,
-} from 'react-icons/md'
+import { useState, useEffect } from 'react'
+import { Outlet } from 'react-router-dom'
+import { TopNav } from './TopNav'
+import { Sidebar } from './Sidebar'
 import { useApp } from '../../context/AppContext'
-import { useFileUpload } from '../../hooks/useFileUpload'
-import { useToast } from '../ui/Toast'
-import { logout } from '../../firebase/auth'
-import { exportAgentsToExcel } from '../../utils/export'
-import { buildAgentStats } from '../../utils/dataProcessor'
-import { useFreshdeskSync } from '../../hooks/useFreshdeskSync'
+import clsx from 'clsx'
+import { MdStar, MdClose, MdOpenInNew } from 'react-icons/md'
 
-export function TopNav() {
-  const { state, dispatch } = useApp()
-  const { processFile, uploading } = useFileUpload()
-  const { toast } = useToast()
-  const { syncing, lastSync, fetchTickets } = useFreshdeskSync()
-  const fileRef = useRef<HTMLInputElement>(null)
-  const csatRef = useRef<HTMLInputElement>(null)
+const CSAT_URL = 'https://razorpayx.freshdesk.com/a/reports/customer_satisfaction'
+const CSAT_KEY = 'fd_csat_last_upload'
 
-  const agents = Object.values(buildAgentStats(state.filteredTickets, state.settings))
+export function Layout() {
+  const { state } = useApp()
+  const [showBanner, setShowBanner] = useState(false)
+  const [lastCsatUpload, setLastCsatUpload] = useState<string | null>(null)
 
-  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      processFile(file)
-        .then(() => toast('Data loaded successfully!', 'success'))
-        .catch(() => toast('Failed to process file', 'error'))
-    }
-    e.target.value = ''
+  useEffect(() => {
+    const stored = localStorage.getItem(CSAT_KEY)
+    setLastCsatUpload(stored)
+    if (!stored) { setShowBanner(true); return }
+    const last = new Date(stored)
+    const hours = (Date.now() - last.getTime()) / 1000 / 3600
+    if (hours > 24) setShowBanner(true)
+  }, [])
+
+  const handleCsatClick = () => {
+    const now = new Date().toISOString()
+    localStorage.setItem(CSAT_KEY, now)
+    setLastCsatUpload(now)
+    setShowBanner(false)
+    window.open(CSAT_URL, '_blank')
   }
 
-  const handleCsatUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      try {
-        const text = ev.target?.result as string
-        const lines = text.split('\n').map(l => l.replace(/\r$/, '')).filter(l => l.trim())
-        if (lines.length < 2) { toast('CSAT file is empty', 'error'); return }
-        const headers = parseCSVLine(lines[0])
-        const ticketIdIdx = headers.findIndex(h => h.toLowerCase().includes('ticket'))
-        const ratingIdx = headers.findIndex(h => h.toLowerCase().includes('rating'))
-        if (ticketIdIdx === -1 || ratingIdx === -1) { toast('Could not find Ticket Id or Rating columns', 'error'); return }
-        const csatMap: Record<string, number> = {}
-        lines.slice(1).forEach(line => {
-          const vals = parseCSVLine(line)
-          const ticketId = vals[ticketIdIdx]?.trim()
-          const rating = vals[ratingIdx]?.trim().toLowerCase()
-          if (ticketId && rating) {
-            csatMap[ticketId] = rating === 'satisfied' ? 100 : rating === 'neutral' ? 60 : 0
-          }
-        })
-        const updated = state.rawData.map((row: any) => {
-          const tid = String(row['Ticket ID'] || row['ticket id'] || row['id'] || '')
-          if (csatMap[tid] !== undefined) {
-            return { ...row, 'CSAT': csatMap[tid] }
-          }
-          return row
-        })
-        dispatch({ type: 'SET_RAW_DATA', payload: { raw: updated as any, name: state.lastUpload?.name || 'data' } })
-        const mapped = Object.keys(csatMap).length
-        toast(`CSAT mapped for ${mapped} tickets!`, 'success')
-      } catch {
-        toast('Failed to process CSAT file', 'error')
-      }
-    }
-    reader.readAsText(file)
-    e.target.value = ''
-  }
-
-  const handleSync = async () => {
-    toast('Syncing from Freshdesk...', 'info')
-    await fetchTickets()
-    toast('Freshdesk data synced!', 'success')
-  }
+  const hoursAgo = lastCsatUpload
+    ? Math.round((Date.now() - new Date(lastCsatUpload).getTime()) / 1000 / 3600)
+    : null
 
   return (
-    <nav className="fixed top-0 left-0 right-0 h-16 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 flex items-center px-4 gap-3">
-      <div className="flex items-center gap-2 mr-2">
-        <div className="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center">
-          <MdTableChart className="text-white w-4 h-4" />
-        </div>
-        <span className="font-bold text-brand-700 dark:text-brand-400 hidden sm:block text-sm">FD Dashboard</span>
-      </div>
+    <div id="dashboard-root" className="min-h-screen bg-[#060e1e]">
+      <TopNav />
 
-      <button
-        className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 lg:hidden"
-        onClick={() => dispatch({ type: 'SET_SIDEBAR', payload: !state.sidebarOpen })}
-      >
-        <MdMenu className="w-5 h-5" />
-      </button>
-
-      <div className="flex-1 flex items-center justify-center gap-3">
-        <span className="text-xs font-medium text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800 px-3 py-1.5 rounded-full border border-gray-100 dark:border-gray-700 hidden md:block">
-          {new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
-        </span>
-        {lastSync && (
-          <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1.5 rounded-full border border-emerald-100 dark:border-emerald-900 hidden lg:block">
-            Last sync: {lastSync.toLocaleTimeString()}
-          </span>
-        )}
-        {state.lastUpload && !lastSync && (
-          <span className="text-xs font-medium text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30 px-3 py-1.5 rounded-full border border-brand-100 dark:border-brand-900 hidden lg:block">
-            {state.lastUpload.rows.toLocaleString()} tickets · {state.lastUpload.name}
-          </span>
-        )}
-      </div>
-
-      <div className="flex items-center gap-1.5">
-        <input type="file" ref={fileRef} accept=".csv,.xlsx,.xls" className="hidden" onChange={handleUpload} />
-        <input type="file" ref={csatRef} accept=".csv" className="hidden" onChange={handleCsatUpload} />
-
-        <button
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
-          onClick={handleSync}
-          disabled={syncing}
-          title="Sync from Freshdesk"
-        >
-          <MdSync className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-          <span className="hidden sm:block">{syncing ? 'Syncing...' : 'Sync Now'}</span>
-        </button>
-
-        <button
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl bg-amber-500 text-white hover:bg-amber-600 transition-colors"
-          onClick={() => csatRef.current?.click()}
-          title="Upload CSAT Report"
-        >
-          <MdStar className="w-3.5 h-3.5" />
-          <span className="hidden sm:block">Upload CSAT</span>
-        </button>
-
-        <button
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition-colors disabled:opacity-50"
-          onClick={() => fileRef.current?.click()}
-          disabled={uploading}
-        >
-          {uploading
-            ? <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-            : <MdUpload className="w-3.5 h-3.5" />
-          }
-          <span className="hidden sm:block">Upload</span>
-        </button>
-
-        <button
-          onClick={() => { exportAgentsToExcel(agents); toast('Excel exported!', 'success') }}
-          className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hidden sm:block"
-          title="Export Excel"
-        >
-          <MdFileDownload className="w-4 h-4" />
-        </button>
-
-        <button
-          onClick={() => dispatch({ type: 'TOGGLE_DARK' })}
-          className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
-        >
-          {state.darkMode ? <MdLightMode className="w-4 h-4" /> : <MdDarkMode className="w-4 h-4" />}
-        </button>
-
-        {state.user && (
-          <div className="flex items-center gap-2 ml-1">
-            {state.user.photoURL
-              ? <img src={state.user.photoURL} alt="" className="w-7 h-7 rounded-full" />
-              : <div className="w-7 h-7 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs font-bold">
-                  {(state.user.displayName || state.user.email || 'U').charAt(0).toUpperCase()}
-                </div>
+      {/* CSAT Reminder Banner */}
+      {showBanner && state.tickets.length > 0 && (
+        <div style={{
+          position: 'fixed', top: 64, left: 0, right: 0, zIndex: 80,
+          background: 'linear-gradient(90deg, #78350f, #92400e)',
+          borderBottom: '1px solid #b45309',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '8px 16px', gap: 12,
+        }}>
+          <MdStar style={{ color: '#fbbf24', width: 16, height: 16, flexShrink: 0 }} />
+          <span style={{ fontSize: 13, color: '#fef3c7', fontWeight: 500 }}>
+            {hoursAgo === null
+              ? 'CSAT data has never been uploaded — upload now for accurate satisfaction scores'
+              : 'CSAT data is ' + hoursAgo + 'h old — upload latest export for accurate scores'
             }
-            <button onClick={() => logout()} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500" title="Logout">
-              <MdLogout className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-      </div>
-    </nav>
-  )
-}
+          </span>
+          <button
+            onClick={handleCsatClick}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#fbbf24', color: '#78350f', border: 'none', borderRadius: 6, padding: '4px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+          >
+            Open Freshdesk CSAT <MdOpenInNew style={{ width: 12, height: 12 }} />
+          </button>
+          <span style={{ fontSize: 11, color: '#fde68a' }}>→ Export CSV → come back → click Upload CSAT</span>
+          <button
+            onClick={() => setShowBanner(false)}
+            style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#fbbf24', cursor: 'pointer', padding: 4 }}
+          >
+            <MdClose style={{ width: 16, height: 16 }} />
+          </button>
+        </div>
+      )}
 
-function parseCSVLine(line: string): string[] {
-  const result: string[] = []
-  let cur = '', inQ = false
-  for (const ch of line) {
-    if (ch === '"') inQ = !inQ
-    else if (ch === ',' && !inQ) { result.push(cur.trim()); cur = '' }
-    else cur += ch
-  }
-  result.push(cur.trim())
-  return result
+      <Sidebar />
+      <main className={clsx(
+        'transition-all duration-200 lg:pl-56',
+        showBanner && state.tickets.length > 0 ? 'pt-[104px]' : 'pt-16'
+      )}>
+        <div className="p-4 md:p-6">
+          <Outlet />
+        </div>
+      </main>
+    </div>
+  )
 }
