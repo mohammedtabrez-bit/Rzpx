@@ -1,30 +1,68 @@
 import { motion } from 'framer-motion'
 import { useApp } from '../context/AppContext'
+import { MdOpenInNew } from 'react-icons/md'
 
-interface InsightCardProps { icon: string; bg: string; title: string; text: string }
-function InsightCard({ icon, bg, title, text }: InsightCardProps) {
+const FD_BASE = 'https://razorpayx.freshdesk.com'
+
+interface InsightCardProps {
+  icon: string
+  bg: string
+  title: string
+  text: string
+  tickets?: number[]
+  explanation?: string
+}
+
+function InsightCard({ icon, bg, title, text, tickets, explanation }: InsightCardProps) {
   return (
-    <motion.div className="card p-4 flex gap-3 items-start" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${bg}`}>{icon}</div>
-      <div>
-        <div className="font-semibold text-sm mb-1">{title}</div>
-        <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed" dangerouslySetInnerHTML={{ __html: text }} />
+    <motion.div
+      style={{ background: '#0a1628', border: '1px solid #0d2147', borderRadius: 14, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}
+      initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
+    >
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        <div style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, background: bg }}>{icon}</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: '#93c5fd', marginBottom: 4 }}>{title}</div>
+          <p style={{ fontSize: 12, color: '#3b82f6', lineHeight: 1.5 }} dangerouslySetInnerHTML={{ __html: text }} />
+        </div>
       </div>
+      {explanation && (
+        <div style={{ background: '#040a14', border: '1px solid #0d2147', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: '#1e40af', lineHeight: 1.6 }}>
+          <span style={{ color: '#3b82f6', fontWeight: 600 }}>How calculated: </span>{explanation}
+        </div>
+      )}
+      {tickets && tickets.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 4 }}>
+          <span style={{ fontSize: 11, color: '#1e40af', fontWeight: 600, width: '100%' }}>Impacted tickets:</span>
+          {tickets.slice(0, 8).map(tid => (
+            
+              key={tid}
+              href={`${FD_BASE}/a/tickets/${tid}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontSize: 11, background: '#1e3a8a', color: '#60a5fa', border: '1px solid #1e40af', padding: '2px 8px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 3, textDecoration: 'none' }}
+            >
+              #{tid} <MdOpenInNew style={{ width: 10, height: 10 }} />
+            </a>
+          ))}
+          {tickets.length > 8 && <span style={{ fontSize: 11, color: '#1e40af' }}>+{tickets.length - 8} more</span>}
+        </div>
+      )}
     </motion.div>
   )
 }
 
 export function InsightsPage() {
   const { state } = useApp()
-  const { agentStats, globalMetrics: m, settings } = state
+  const { agentStats, globalMetrics: m, settings, filteredTickets } = state
 
   const agents = Object.values(agentStats)
   if (!agents.length || !m) {
     return (
-      <div className="text-center py-24 text-gray-400">
-        <div className="text-5xl mb-4">💡</div>
-        <div className="font-semibold text-lg">No insights yet</div>
-        <div className="text-sm mt-1">Upload data to generate AI-powered insights and recommendations.</div>
+      <div style={{ textAlign: 'center', padding: '64px 24px', color: '#1e40af' }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>💡</div>
+        <div style={{ fontWeight: 600, fontSize: 18, color: '#60a5fa' }}>No insights yet</div>
+        <div style={{ fontSize: 14, marginTop: 8 }}>Upload data or click Sync Now to generate insights.</div>
       </div>
     )
   }
@@ -41,39 +79,53 @@ export function InsightsPage() {
   const worstSla = [...agents].filter(a => a.slaRate > 0).sort((a, b) => a.slaRate - b.slaRate)[0]
   const { targets } = settings
 
+  const escalatedTickets = filteredTickets.filter(t => t.isEscalated).map(t => Number(t.id)).filter(Boolean).slice(0, 20)
+  const slaBreachedTickets = filteredTickets.filter(t => t.slaStatus.toLowerCase().includes('breach') || t.slaStatus.toLowerCase() === 'false' || t.slaStatus.toLowerCase() === 'no').map(t => Number(t.id)).filter(Boolean).slice(0, 20)
+  const reopenedTickets = filteredTickets.filter(t => t.isReopened).map(t => Number(t.id)).filter(Boolean).slice(0, 20)
+
+  const groupMap: Record<string, number> = {}
+  filteredTickets.forEach(t => { if (t.group) groupMap[t.group] = (groupMap[t.group] || 0) + 1 })
+  const topGroup = Object.entries(groupMap).sort((a, b) => b[1] - a[1])[0]
+
   const insights = [
-    { icon: '🏆', bg: 'bg-amber-50 dark:bg-amber-900/20', title: 'Top Performer', text: `<strong>${top.agent}</strong> leads with a score of <strong>${top.score}/100</strong> and ${top.resolved} resolved tickets.` },
-    { icon: '📉', bg: 'bg-red-50 dark:bg-red-900/20', title: 'Needs Coaching', text: `<strong>${bot.agent}</strong> scored <strong>${bot.score}/100</strong>. Schedule a performance coaching session.` },
-    { icon: '🎫', bg: 'bg-blue-50 dark:bg-blue-900/20', title: 'Highest Volume', text: `<strong>${byVol.agent}</strong> handled the most tickets: <strong>${byVol.assigned}</strong>. Monitor for potential burnout.` },
-    ...(bestCsat ? [{ icon: '😁', bg: 'bg-emerald-50 dark:bg-emerald-900/20', title: 'Best CSAT', text: `<strong>${bestCsat.agent}</strong> achieved <strong>${bestCsat.avgCsat.toFixed(1)}%</strong> customer satisfaction.` }] : []),
-    ...(worstCsat && worstCsat !== bestCsat ? [{ icon: '😟', bg: 'bg-pink-50 dark:bg-pink-900/20', title: 'Low CSAT Alert', text: `<strong>${worstCsat.agent}</strong> CSAT: <strong>${worstCsat.avgCsat.toFixed(1)}%</strong>. Initiate quality coaching.` }] : []),
-    ...(mostEscal?.escalations > 0 ? [{ icon: '🚨', bg: 'bg-red-50 dark:bg-red-900/20', title: 'Most Escalations', text: `<strong>${mostEscal.agent}</strong> — <strong>${mostEscal.escalations}</strong> escalations. Investigate root causes.` }] : []),
-    ...(fastFrt ? [{ icon: '⚡', bg: 'bg-purple-50 dark:bg-purple-900/20', title: 'Fastest Responder', text: `<strong>${fastFrt.agent}</strong> avg FRT: <strong>${fastFrt.avgFrt.toFixed(1)}h</strong>.` }] : []),
-    ...(slowRt ? [{ icon: '⏳', bg: 'bg-amber-50 dark:bg-amber-900/20', title: 'Slow Resolution', text: `<strong>${slowRt.agent}</strong> avg resolution: <strong>${slowRt.avgRt.toFixed(1)}h</strong>.` }] : []),
-    ...(worstSla ? [{ icon: '📏', bg: 'bg-orange-50 dark:bg-orange-900/20', title: 'SLA Risk', text: `<strong>${worstSla.agent}</strong> SLA: <strong>${worstSla.slaRate.toFixed(0)}%</strong>. Target: ${targets.sla}%.` }] : []),
+    { icon: '🏆', bg: '#1a3a0a', title: 'Top Performer', text: `<strong style="color:#4ade80">${top.agent}</strong> leads with score <strong style="color:#4ade80">${top.score}/100</strong> and ${top.resolved} tickets resolved.`, explanation: 'Score = CSAT (30%) + Quality (25%) + SLA (20%) + FRT (10%) + Resolution Time (10%) + Escalations (5%).' },
+    { icon: '📉', bg: '#3a0a0a', title: 'Needs Coaching', text: `<strong style="color:#f87171">${bot.agent}</strong> scored <strong style="color:#f87171">${bot.score}/100</strong>. Schedule a performance coaching session.`, explanation: `Key areas: CSAT ${bot.avgCsat.toFixed(0)}%, SLA ${bot.slaRate.toFixed(0)}%, Avg FRT ${bot.avgFrt.toFixed(1)}h.` },
+    { icon: '🎫', bg: '#0a1a3a', title: 'Highest Volume', text: `<strong style="color:#60a5fa">${byVol.agent}</strong> handled <strong style="color:#60a5fa">${byVol.assigned}</strong> tickets — monitor for burnout.`, explanation: 'Total tickets assigned to this agent in the selected date range.' },
+    ...(topGroup ? [{ icon: '👥', bg: '#1a0a3a', title: 'Busiest Group', text: `<strong style="color:#a78bfa">${topGroup[0]}</strong> handled <strong style="color:#a78bfa">${topGroup[1]}</strong> tickets.`, explanation: 'Total tickets assigned to this group in the filtered date range.' }] : []),
+    ...(bestCsat ? [{ icon: '😁', bg: '#0a3a1a', title: 'Best CSAT', text: `<strong style="color:#34d399">${bestCsat.agent}</strong> achieved <strong style="color:#34d399">${bestCsat.avgCsat.toFixed(1)}%</strong> CSAT.`, explanation: 'CSAT = average of all survey scores. Satisfied=100%, Neutral=60%, Dissatisfied=0%.' }] : []),
+    ...(worstCsat && worstCsat !== bestCsat ? [{ icon: '😟', bg: '#3a1a0a', title: 'Low CSAT Alert', text: `<strong style="color:#fb923c">${worstCsat.agent}</strong> CSAT: <strong style="color:#fb923c">${worstCsat.avgCsat.toFixed(1)}%</strong>. Initiate quality coaching.`, explanation: 'Upload latest CSAT report using the Upload CSAT button for accurate scores.' }] : []),
+    ...(mostEscal?.escalations > 0 ? [{ icon: '🚨', bg: '#3a0a0a', title: 'Most Escalations', text: `<strong style="color:#f87171">${mostEscal.agent}</strong> — <strong style="color:#f87171">${mostEscal.escalations}</strong> escalations.`, explanation: 'Escalations = tickets marked is_escalated=true in Freshdesk. Triggered by: (1) SLA breach, (2) Agent manually escalates, (3) Supervisor escalates.', tickets: escalatedTickets }] : []),
+    ...(fastFrt ? [{ icon: '⚡', bg: '#1a0a3a', title: 'Fastest Responder', text: `<strong style="color:#a78bfa">${fastFrt.agent}</strong> avg FRT: <strong style="color:#a78bfa">${fastFrt.avgFrt.toFixed(1)}h</strong>.`, explanation: 'FRT = time between ticket creation and first agent reply.' }] : []),
+    ...(slowRt ? [{ icon: '⏳', bg: '#3a2a0a', title: 'Slow Resolution', text: `<strong style="color:#fbbf24">${slowRt.agent}</strong> avg resolution: <strong style="color:#fbbf24">${slowRt.avgRt.toFixed(1)}h</strong>.`, explanation: 'Resolution time = ticket creation to Resolved/Closed status.' }] : []),
+    ...(worstSla ? [{ icon: '📏', bg: '#3a2a0a', title: 'SLA Risk', text: `<strong style="color:#fbbf24">${worstSla.agent}</strong> SLA: <strong style="color:#fbbf24">${worstSla.slaRate.toFixed(0)}%</strong>. Target: ${targets.sla}%.`, explanation: 'SLA % = tickets resolved within SLA deadline / total tickets. Based on nr_escalated flag from Freshdesk API.', tickets: slaBreachedTickets }] : []),
   ]
 
-  const recommendations = []
-  if (m.avgCsat < targets.csat) recommendations.push({ icon: '💬', bg: 'bg-red-50 dark:bg-red-900/20', title: 'Action: Improve CSAT', text: `Team CSAT (${m.avgCsat.toFixed(1)}%) is below target (${targets.csat}%). Run quality improvement workshops.` })
-  if (m.slaRate < targets.sla) recommendations.push({ icon: '📋', bg: 'bg-amber-50 dark:bg-amber-900/20', title: 'Action: SLA Recovery', text: `SLA compliance (${m.slaRate.toFixed(1)}%) is below target (${targets.sla}%). Review ticket workflows.` })
-  if (m.escalations > 5) recommendations.push({ icon: '🚨', bg: 'bg-red-50 dark:bg-red-900/20', title: 'Escalation Review', text: `${m.escalations} escalations detected. Add agent training and review escalation triggers.` })
-  if (m.reopenRate > targets.reopen) recommendations.push({ icon: '🔄', bg: 'bg-pink-50 dark:bg-pink-900/20', title: 'High Reopen Rate', text: `Reopen rate (${m.reopenRate.toFixed(1)}%) exceeds target (${targets.reopen}%). Focus on first-contact resolution.` })
-  recommendations.push({ icon: '🌟', bg: 'bg-emerald-50 dark:bg-emerald-900/20', title: 'Recognize Top Performer', text: `Share ${top.agent}'s best practices team-wide. Score: ${top.score}/100.` })
+  const recommendations = [
+    ...(m.avgCsat < targets.csat ? [{ icon: '💬', bg: '#3a0a0a', title: 'Action: Improve CSAT', text: `Team CSAT (${m.avgCsat.toFixed(1)}%) is below target (${targets.csat}%). Run quality workshops.`, explanation: 'Upload your CSAT CSV report using the Upload CSAT button to see accurate scores.' }] : []),
+    ...(m.slaRate < targets.sla ? [{ icon: '📋', bg: '#3a2a0a', title: 'Action: SLA Recovery', text: `SLA (${m.slaRate.toFixed(1)}%) is below target (${targets.sla}%). Review workflows.`, explanation: 'Check ticket routing rules and response time agreements per group.', tickets: slaBreachedTickets }] : []),
+    ...(m.escalations > 0 ? [{ icon: '🚨', bg: '#3a0a0a', title: 'Escalation Review', text: `${m.escalations} escalations detected. Add agent training and review escalation triggers.`, explanation: 'Escalation Review fires when any ticket has is_escalated=true. This happens when: (1) SLA is breached — ticket exceeded response/resolution time, (2) Agent manually escalates via Freshdesk escalation button, (3) Supervisor escalates from ticket view. Click ticket links below to investigate each case directly in Freshdesk.', tickets: escalatedTickets }] : []),
+    ...(m.reopenRate > targets.reopen ? [{ icon: '🔄', bg: '#3a0a0a', title: 'High Reopen Rate', text: `Reopen rate (${m.reopenRate.toFixed(1)}%) exceeds target (${targets.reopen}%). Focus on FCR.`, explanation: 'A ticket is reopened when status changes from Resolved/Closed back to Open. Indicates first contact resolution failure.', tickets: reopenedTickets }] : []),
+    { icon: '🌟', bg: '#0a3a1a', title: 'Recognize Top Performer', text: `Share ${top.agent}'s best practices team-wide. Score: ${top.score}/100.`, explanation: 'Recognition boosts team morale. Consider public shoutout in team meeting or Slack channel.' },
+  ]
 
   return (
     <div>
-      <h1 className="text-2xl font-extrabold mb-1">AI Insights</h1>
-      <p className="text-gray-500 text-sm mb-6">Auto-generated from {agents.length} agents · {m.total.toLocaleString()} tickets</p>
-      <div className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-400 flex items-center gap-2">
-        <span>🔍 Performance Insights</span><div className="flex-1 h-px bg-gray-100 dark:bg-gray-800" />
+      <h1 style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 4 }}>AI Insights</h1>
+      <p style={{ fontSize: 14, color: '#3b82f6', marginBottom: 24 }}>
+        Auto-generated from {agents.length} agents · {m.total.toLocaleString()} tickets
+      </p>
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#1e40af', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+        <span>🔍 Performance Insights</span>
+        <div style={{ flex: 1, height: 1, background: '#0d2147' }} />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14, marginBottom: 24 }}>
         {insights.map((ins, i) => <InsightCard key={i} {...ins} />)}
       </div>
-      <div className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-400 flex items-center gap-2">
-        <span>💡 Recommendations</span><div className="flex-1 h-px bg-gray-100 dark:bg-gray-800" />
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#1e40af', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+        <span>💡 Recommendations</span>
+        <div style={{ flex: 1, height: 1, background: '#0d2147' }} />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
         {recommendations.map((r, i) => <InsightCard key={i} {...r} />)}
       </div>
     </div>
