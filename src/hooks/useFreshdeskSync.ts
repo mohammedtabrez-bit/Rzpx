@@ -71,33 +71,31 @@ export function useFreshdeskSync() {
     } catch { /* silent */ }
   }, [])
 
-const fetchCsat = useCallback(async (headers: Record<string, string>): Promise<Record<number, number>> => {
-  const csatMap: Record<number, number> = {}
-  try {
-    let page = 1
-    while (page <= 50) {
-      const res = await fetch(
-        'https://' + DOMAIN + '/api/v2/surveys/satisfaction_ratings?per_page=100&page=' + page,
-        { headers }
-      )
-      if (!res.ok) break
-      const data = await res.json()
-      if (!data.length) break
-      data.forEach((r: any) => {
-        const rating = r.ratings?.default_question
-        const ticketId = r.ticket_id
-        if (ticketId && rating !== undefined) {
-          csatMap[Number(ticketId)] = rating > 0 ? 100 : 0
-        }
-      })
-      if (data.length < 100) break
-      page++
-    }
-    console.log('CSAT fetched:', Object.keys(csatMap).length, 'ratings')
-    console.log('Sample CSAT keys:', Object.keys(csatMap).slice(0, 5))
-  } catch (e) { console.error('CSAT fetch error:', e) }
-  return csatMap
-}, [])
+  const fetchCsat = useCallback(async (headers: Record<string, string>): Promise<Record<number, number>> => {
+    const csatMap: Record<number, number> = {}
+    try {
+      let page = 1
+      while (page <= 50) {
+        const res = await fetch(
+          'https://' + DOMAIN + '/api/v2/surveys/satisfaction_ratings?per_page=100&page=' + page,
+          { headers }
+        )
+        if (!res.ok) break
+        const data = await res.json()
+        if (!data.length) break
+        data.forEach((r: any) => {
+          const rating = r.ratings?.default_question
+          const ticketId = r.ticket_id
+          if (ticketId && rating !== undefined) {
+            csatMap[Number(ticketId)] = rating > 0 ? 100 : 0
+          }
+        })
+        if (data.length < 100) break
+        page++
+      }
+    } catch { /* silent */ }
+    return csatMap
+  }, [])
 
   const fetchTickets = useCallback(async () => {
     if (!DOMAIN || !API_KEY) return
@@ -108,10 +106,7 @@ const fetchCsat = useCallback(async (headers: Record<string, string>): Promise<R
       const headers = { 'Authorization': 'Basic ' + creds }
 
       await fetchAgents(headers)
-
-      const [csatMap] = await Promise.all([
-        fetchCsat(headers),
-      ])
+      const csatMap = await fetchCsat(headers)
 
       let page = 1
       let allTickets: Record<string, unknown>[] = []
@@ -132,7 +127,6 @@ const fetchCsat = useCallback(async (headers: Record<string, string>): Promise<R
       if (allTickets.length) {
         const mapped = allTickets.map((t: any) => {
           const csatScore = csatMap[Number(t.id)]
-if (Number(t.id) === 1152694) console.log('Found CSAT ticket 1152694:', csatScore)
           return {
             'Ticket ID': t.id,
             'Agent': AGENT_MAP[t.responder_id] || String(t.responder_id || 'Unassigned'),
@@ -162,7 +156,6 @@ if (Number(t.id) === 1152694) console.log('Found CSAT ticket 1152694:', csatScor
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sync failed')
-      console.error('Freshdesk sync error:', err)
     } finally {
       setSyncing(false)
     }
