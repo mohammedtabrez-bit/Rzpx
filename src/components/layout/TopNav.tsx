@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import {
   MdMenu, MdDarkMode, MdLightMode, MdUpload,
-  MdRefresh, MdFileDownload, MdLogout, MdTableChart, MdSync,
+  MdFileDownload, MdLogout, MdTableChart, MdSync, MdStar,
 } from 'react-icons/md'
 import { useApp } from '../../context/AppContext'
 import { useFileUpload } from '../../hooks/useFileUpload'
@@ -17,15 +17,57 @@ export function TopNav() {
   const { toast } = useToast()
   const { syncing, lastSync, fetchTickets } = useFreshdeskSync()
   const fileRef = useRef<HTMLInputElement>(null)
+  const csatRef = useRef<HTMLInputElement>(null)
 
   const agents = Object.values(buildAgentStats(state.filteredTickets, state.settings))
 
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      processFile(file).then(() => toast('Data loaded successfully!', 'success'))
+      processFile(file)
+        .then(() => toast('Data loaded successfully!', 'success'))
         .catch(() => toast('Failed to process file', 'error'))
     }
+    e.target.value = ''
+  }
+
+  const handleCsatUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      try {
+        const text = ev.target?.result as string
+        const lines = text.split('\n').map(l => l.replace(/\r$/, '')).filter(l => l.trim())
+        if (lines.length < 2) { toast('CSAT file is empty', 'error'); return }
+        const headers = parseCSVLine(lines[0])
+        const ticketIdIdx = headers.findIndex(h => h.toLowerCase().includes('ticket'))
+        const ratingIdx = headers.findIndex(h => h.toLowerCase().includes('rating'))
+        if (ticketIdIdx === -1 || ratingIdx === -1) { toast('Could not find Ticket Id or Rating columns', 'error'); return }
+        const csatMap: Record<string, number> = {}
+        lines.slice(1).forEach(line => {
+          const vals = parseCSVLine(line)
+          const ticketId = vals[ticketIdIdx]?.trim()
+          const rating = vals[ratingIdx]?.trim().toLowerCase()
+          if (ticketId && rating) {
+            csatMap[ticketId] = rating === 'satisfied' ? 100 : rating === 'neutral' ? 60 : 0
+          }
+        })
+        const updated = state.rawData.map((row: any) => {
+          const tid = String(row['Ticket ID'] || row['ticket id'] || row['id'] || '')
+          if (csatMap[tid] !== undefined) {
+            return { ...row, 'CSAT': csatMap[tid] }
+          }
+          return row
+        })
+        dispatch({ type: 'SET_RAW_DATA', payload: { raw: updated as any, name: state.lastUpload?.name || 'data' } })
+        const mapped = Object.keys(csatMap).length
+        toast(`CSAT mapped for ${mapped} tickets!`, 'success')
+      } catch {
+        toast('Failed to process CSAT file', 'error')
+      }
+    }
+    reader.readAsText(file)
     e.target.value = ''
   }
 
@@ -69,6 +111,7 @@ export function TopNav() {
 
       <div className="flex items-center gap-1.5">
         <input type="file" ref={fileRef} accept=".csv,.xlsx,.xls" className="hidden" onChange={handleUpload} />
+        <input type="file" ref={csatRef} accept=".csv" className="hidden" onChange={handleCsatUpload} />
 
         <button
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
@@ -78,6 +121,15 @@ export function TopNav() {
         >
           <MdSync className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
           <span className="hidden sm:block">{syncing ? 'Syncing...' : 'Sync Now'}</span>
+        </button>
+
+        <button
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl bg-amber-500 text-white hover:bg-amber-600 transition-colors"
+          onClick={() => csatRef.current?.click()}
+          title="Upload CSAT Report"
+        >
+          <MdStar className="w-3.5 h-3.5" />
+          <span className="hidden sm:block">Upload CSAT</span>
         </button>
 
         <button
@@ -92,7 +144,11 @@ export function TopNav() {
           <span className="hidden sm:block">Upload</span>
         </button>
 
-        <button onClick={() => { exportAgentsToExcel(agents); toast('Excel exported!', 'success') }} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hidden sm:block" title="Export Excel">
+        <button
+          onClick={() => { exportAgentsToExcel(agents); toast('Excel exported!', 'success') }}
+          className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hidden sm:block"
+          title="Export Excel"
+        >
           <MdFileDownload className="w-4 h-4" />
         </button>
 
@@ -119,4 +175,16 @@ export function TopNav() {
       </div>
     </nav>
   )
+}
+
+function parseCSVLine(line: string): string[] {
+  const result: string[] = []
+  let cur = '', inQ = false
+  for (const ch of line) {
+    if (ch === '"') inQ = !inQ
+    else if (ch === ',' && !inQ) { result.push(cur.trim()); cur = '' }
+    else cur += ch
+  }
+  result.push(cur.trim())
+  return result
 }
