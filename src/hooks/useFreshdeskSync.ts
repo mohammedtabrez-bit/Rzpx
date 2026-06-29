@@ -80,7 +80,7 @@ export function useFreshdeskSync() {
         allTickets = [...allTickets, ...data]
         if (data.length < 100) break
         page++
-        if (page > 30) break
+        if (page > 100) break
       }
 
       if (allTickets.length) {
