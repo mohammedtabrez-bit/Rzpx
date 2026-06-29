@@ -1,0 +1,62 @@
+{
+  "collections": {
+    "users": {
+      "document_id": "Firebase Auth UID",
+      "fields": {
+        "uid": "string",
+        "email": "string | null",
+        "displayName": "string | null",
+        "photoURL": "string | null",
+        "role": "'admin' | 'viewer'",
+        "createdAt": "Timestamp"
+      }
+    },
+    "uploads": {
+      "document_id": "Auto-generated",
+      "fields": {
+        "fileName": "string",
+        "rowCount": "number",
+        "agentCount": "number",
+        "uploadedAt": "Timestamp",
+        "uploadedBy": "string (uid)",
+        "storagePath": "string (download URL)"
+      }
+    },
+    "configurations": {
+      "document_id": "Firebase Auth UID",
+      "fields": {
+        "weights": {
+          "csat": "number (0-100)",
+          "quality": "number (0-100)",
+          "sla": "number (0-100)",
+          "frt": "number (0-100)",
+          "rt": "number (0-100)",
+          "escalations": "number (0-100)"
+        },
+        "targets": {
+          "csat": "number (default: 85)",
+          "sla": "number (default: 90)",
+          "fcr": "number (default: 75)",
+          "frt": "number (hours, default: 4)",
+          "rt": "number (hours, default: 24)",
+          "reopen": "number (%, default: 5)"
+        },
+        "thresholds": {
+          "excellent": "number (default: 85)",
+          "good": "number (default: 70)",
+          "average": "number (default: 50)"
+        },
+        "columnOverrides": "Record<string, string>",
+        "updatedAt": "Timestamp"
+      }
+    },
+    "performanceReports": {
+      "document_id": "{uid}_{reportId}",
+      "fields": {
+        "createdAt": "Timestamp",
+        "createdBy": "string (uid)",
+        "reportData": "object (arbitrary)"
+      }
+    }
+  }
+}
