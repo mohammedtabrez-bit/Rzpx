@@ -1,6 +1,6 @@
 import React from 'react'
 import { NavLink } from 'react-router-dom'
-import { MdDashboard, MdPeople, MdBarChart, MdLightbulb, MdSettings, MdClose, MdSchedule } from 'react-icons/md'
+import { MdDashboard, MdPeople, MdBarChart, MdLightbulb, MdSettings, MdClose, MdSchedule, MdStar } from 'react-icons/md'
 import { useApp } from '../../context/AppContext'
 import clsx from 'clsx'
 
@@ -9,6 +9,7 @@ const NAV = [
   { to: '/agents', label: 'Agents', icon: MdPeople },
   { to: '/analytics', label: 'Analytics', icon: MdBarChart },
   { to: '/aging', label: 'Ticket Aging', icon: MdSchedule },
+  { to: '/survey', label: 'CSAT Survey', icon: MdStar },
   { to: '/insights', label: 'AI Insights', icon: MdLightbulb },
   { to: '/settings', label: 'Settings', icon: MdSettings, section: 'Config' },
 ]
