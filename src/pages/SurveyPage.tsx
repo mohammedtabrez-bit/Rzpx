@@ -133,7 +133,7 @@ export function SurveyPage() {
         </div>
       </div>
 
-      <div style={{ ...cardStyle, padding: '14px 18px', marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+      <div style={{ ...cardStyle, padding: '14px 18px', marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', position: 'relative', zIndex: 50 }}>
         <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 3, border: '1px solid rgba(255,255,255,0.08)' }}>
           {(['all', 'satisfied', 'dissatisfied'] as const).map(r => (
             <button key={r} onClick={() => setRatingFilter(r)} style={{ padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', textTransform: 'capitalize', background: ratingFilter === r ? (r === 'satisfied' ? '#16a34a' : r === 'dissatisfied' ? '#dc2626' : '#1d4ed8') : 'transparent', color: ratingFilter === r ? '#fff' : 'rgba(255,255,255,0.4)' }}>
@@ -142,7 +142,7 @@ export function SurveyPage() {
           ))}
         </div>
 
-        <div style={{ position: 'relative' }}>
+        <div style={{ position: 'relative', zIndex: 60 }}>
           <button onClick={() => setGroupOpen(o => !o)} style={{ ...inputStyle, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
             <span style={{ color: selectedGroups.length ? '#60a5fa' : 'rgba(255,255,255,0.4)' }}>
               {selectedGroups.length === 0 ? 'All Groups' : selectedGroups.length + ' selected'}
@@ -150,7 +150,7 @@ export function SurveyPage() {
             <span style={{ color: '#3b82f6', fontSize: 10 }}>▼</span>
           </button>
           {groupOpen && (
-            <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#040a14', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, width: 220, maxHeight: 240, overflowY: 'auto', marginTop: 4, boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}>
+            <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 1000, background: '#040a14', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, width: 220, maxHeight: 240, overflowY: 'auto', marginTop: 4, boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}>
               <div style={{ padding: '6px 10px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 11, color: '#3b82f6' }}>{selectedGroups.length} selected</span>
                 <button onClick={() => setSelectedGroups([])} style={{ fontSize: 11, color: '#f97316', background: 'none', border: 'none', cursor: 'pointer' }}>Clear</button>
@@ -180,6 +180,17 @@ export function SurveyPage() {
           {filtered.length} of {records.length} responses
         </div>
       </div>
+
+      {selectedGroups.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+          {selectedGroups.map(g => (
+            <span key={g} style={{ fontSize: 11, background: 'rgba(30,58,138,0.5)', color: '#93c5fd', border: '1px solid rgba(147,197,253,0.2)', padding: '3px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 5 }}>
+              {g}
+              <button onClick={() => toggleGroup(g)} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: 13 }}>×</button>
+            </span>
+          ))}
+        </div>
+      )}
 
       <div style={{ ...cardStyle, marginBottom: 20 }}>
         <div style={{ fontWeight: 700, fontSize: 14, color: '#93c5fd', marginBottom: 14 }}>Group-wise Breakdown</div>
