@@ -10,6 +10,7 @@ import { AnalyticsPage } from './pages/AnalyticsPage'
 import { InsightsPage } from './pages/InsightsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { AgingPage } from './pages/AgingPage'
+import { SurveyPage } from './pages/SurveyPage'
 import { useAuth } from './hooks/useAuth'
 
 function AppRoutes() {
@@ -40,6 +41,7 @@ function AppRoutes() {
         <Route path="/agents" element={<AgentsPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/aging" element={<AgingPage />} />
+        <Route path="/survey" element={<SurveyPage />} />
         <Route path="/insights" element={<InsightsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
