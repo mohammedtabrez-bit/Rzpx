@@ -80,6 +80,8 @@ export function SurveyPage() {
     XLSX.writeFile(wb, 'csat-survey-' + new Date().toISOString().slice(0, 10) + '.xlsx')
   }
 
+  const ticketUrl = (id: number) => FD_BASE + '/a/tickets/' + String(id)
+
   const inputStyle = { background: '#040a14', border: '1px solid rgba(255,255,255,0.1)', color: '#93c5fd', fontSize: 12, padding: '6px 10px', borderRadius: 8, outline: 'none' }
   const cardStyle = { background: 'rgba(10,22,40,0.7)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 20 }
   const labelStyle = { fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
@@ -112,14 +114,15 @@ export function SurveyPage() {
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 4 }}>CSAT / DSAT Survey</h1>
           <p style={{ fontSize: 14, color: '#3b82f6' }}>
-            {filtered.length.toLocaleString()} of {records.length.toLocaleString()} responses
+            {filtered.length.toLocaleString() + ' of ' + records.length.toLocaleString() + ' responses'}
             {selectedGroups.length > 0 ? ' · ' + selectedGroups.join(', ') : ' · All groups'}
-            {(dateFrom || dateTo) ? ' · ' + (dateFrom || '...') + ' → ' + (dateTo || 'today') : ''}
+            {(dateFrom || dateTo) ? ' · ' + (dateFrom || '...') + ' to ' + (dateTo || 'today') : ''}
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <button onClick={fetchSurveyData} disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', background: 'rgba(22,101,52,0.8)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-            <MdRefresh className={'w-4 h-4 ' + (loading ? 'animate-spin' : '')} /> {loading ? 'Refreshing...' : 'Refresh'}
+            <MdRefresh className={'w-4 h-4 ' + (loading ? 'animate-spin' : '')} />
+            {loading ? 'Refreshing...' : 'Refresh'}
           </button>
           <button onClick={exportExcel} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', background: 'rgba(30,58,138,0.8)', color: '#93c5fd', border: '1px solid rgba(147,197,253,0.2)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
             <MdFileDownload className="w-4 h-4" /> Export Excel
@@ -151,38 +154,24 @@ export function SurveyPage() {
       <div style={{ ...cardStyle, padding: '16px 18px', marginBottom: 20, position: 'relative', zIndex: 50 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-end' }}>
 
-          {/* Date range */}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={labelStyle}>From</span>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={e => setDateFrom(e.target.value)}
-              style={{ ...inputStyle, width: 140 }}
-            />
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ ...inputStyle, width: 140 }} />
           </div>
+
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={labelStyle}>To</span>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={e => setDateTo(e.target.value)}
-              style={{ ...inputStyle, width: 140 }}
-            />
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ ...inputStyle, width: 140 }} />
           </div>
 
           {(dateFrom || dateTo) && (
-            <button
-              onClick={clearDates}
-              style={{ padding: '6px 12px', background: 'transparent', color: '#f97316', border: '1px solid rgba(249,115,22,0.3)', borderRadius: 8, fontSize: 12, cursor: 'pointer', marginBottom: 1 }}
-            >
+            <button onClick={clearDates} style={{ padding: '6px 12px', background: 'transparent', color: '#f97316', border: '1px solid rgba(249,115,22,0.3)', borderRadius: 8, fontSize: 12, cursor: 'pointer', marginBottom: 1 }}>
               Clear dates
             </button>
           )}
 
           <div style={{ width: 1, height: 32, background: 'rgba(255,255,255,0.08)' }} />
 
-          {/* Rating filter */}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={labelStyle}>Rating</span>
             <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 3, border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -194,7 +183,6 @@ export function SurveyPage() {
             </div>
           </div>
 
-          {/* Group filter */}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={labelStyle}>Group</span>
             <div style={{ position: 'relative', zIndex: 60 }}>
@@ -224,36 +212,20 @@ export function SurveyPage() {
             </div>
           </div>
 
-          {/* Search */}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={labelStyle}>Search</span>
-            <input
-              type="text"
-              placeholder="Agent or ticket ID..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{ ...inputStyle, width: 200 }}
-            />
+            <input type="text" placeholder="Agent or ticket ID..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inputStyle, width: 200 }} />
           </div>
 
           <div style={{ marginLeft: 'auto', fontSize: 12, color: 'rgba(255,255,255,0.3)', alignSelf: 'flex-end', paddingBottom: 2 }}>
-            {filtered.length} of {records.length} responses
+            {filtered.length + ' of ' + records.length + ' responses'}
           </div>
         </div>
 
-        {/* Active filter tags */}
         {(selectedGroups.length > 0 || dateFrom || dateTo) && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
-            {dateFrom && (
-              <span style={{ fontSize: 11, background: 'rgba(30,58,138,0.5)', color: '#93c5fd', border: '1px solid rgba(147,197,253,0.2)', padding: '3px 10px', borderRadius: 999 }}>
-                From: {dateFrom}
-              </span>
-            )}
-            {dateTo && (
-              <span style={{ fontSize: 11, background: 'rgba(30,58,138,0.5)', color: '#93c5fd', border: '1px solid rgba(147,197,253,0.2)', padding: '3px 10px', borderRadius: 999 }}>
-                To: {dateTo}
-              </span>
-            )}
+            {dateFrom && <span style={{ fontSize: 11, background: 'rgba(30,58,138,0.5)', color: '#93c5fd', border: '1px solid rgba(147,197,253,0.2)', padding: '3px 10px', borderRadius: 999 }}>{'From: ' + dateFrom}</span>}
+            {dateTo && <span style={{ fontSize: 11, background: 'rgba(30,58,138,0.5)', color: '#93c5fd', border: '1px solid rgba(147,197,253,0.2)', padding: '3px 10px', borderRadius: 999 }}>{'To: ' + dateTo}</span>}
             {selectedGroups.map(g => (
               <span key={g} style={{ fontSize: 11, background: 'rgba(30,58,138,0.5)', color: '#93c5fd', border: '1px solid rgba(147,197,253,0.2)', padding: '3px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 5 }}>
                 {g}
@@ -324,10 +296,16 @@ export function SurveyPage() {
                   </td>
                   <td style={{ padding: '8px 12px', color: 'rgba(255,255,255,0.5)' }}>{r.groupName}</td>
                   <td style={{ padding: '8px 12px' }}>
-                    <a href={FD_BASE + '/a/tickets/' + r.ticketId} target="_blank" rel="noopener noreferrer"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: '#60a5fa', fontWeight: 600, textDecoration: 'none' }}
+                    
+                      href={ticketUrl(r.ticketId)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#60a5fa', fontWeight: 700, textDecoration: 'none', background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.2)', padding: '3px 8px', borderRadius: 6 }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(96,165,250,0.2)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'rgba(96,165,250,0.1)')}
                     >
-                      {'#' + r.ticketId} <MdOpenInNew style={{ width: 9, height: 9 }} />
+                      {'#' + String(r.ticketId)}
+                      <MdOpenInNew style={{ width: 10, height: 10 }} />
                     </a>
                   </td>
                   <td style={{ padding: '8px 12px', color: '#93c5fd' }}>{r.agentName}</td>
@@ -340,7 +318,7 @@ export function SurveyPage() {
           </table>
           {filtered.length > 500 && (
             <div style={{ textAlign: 'center', padding: 16, color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>
-              Showing first 500 of {filtered.length} — export to Excel for full data
+              {'Showing first 500 of ' + filtered.length + ' — export to Excel for full data'}
             </div>
           )}
         </div>
