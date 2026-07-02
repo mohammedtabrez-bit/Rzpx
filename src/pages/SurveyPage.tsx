@@ -16,6 +16,8 @@ export function SurveyPage() {
   const [groupOpen, setGroupOpen] = useState(false)
   const [ratingFilter, setRatingFilter] = useState<'all' | 'satisfied' | 'dissatisfied'>('all')
   const [search, setSearch] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
 
   useEffect(() => {
     if (records.length === 0) fetchSurveyData()
@@ -25,15 +27,24 @@ export function SurveyPage() {
     setSelectedGroups(prev => prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g])
   }
 
+  const clearDates = () => {
+    setDateFrom('')
+    setDateTo('')
+  }
+
   const filtered = useMemo(() => {
+    const from = dateFrom ? new Date(dateFrom) : null
+    const to = dateTo ? new Date(dateTo + 'T23:59:59') : null
     return records.filter(r => {
       if (selectedGroups.length > 0 && !selectedGroups.includes(r.groupName)) return false
       if (ratingFilter === 'satisfied' && r.rating <= 0) return false
       if (ratingFilter === 'dissatisfied' && r.rating > 0) return false
       if (search && !r.agentName.toLowerCase().includes(search.toLowerCase()) && !String(r.ticketId).includes(search)) return false
+      if (from && r.createdAt < from) return false
+      if (to && r.createdAt > to) return false
       return true
     }).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-  }, [records, selectedGroups, ratingFilter, search])
+  }, [records, selectedGroups, ratingFilter, search, dateFrom, dateTo])
 
   const stats = useMemo(() => {
     const total = filtered.length
@@ -71,6 +82,7 @@ export function SurveyPage() {
 
   const inputStyle = { background: '#040a14', border: '1px solid rgba(255,255,255,0.1)', color: '#93c5fd', fontSize: 12, padding: '6px 10px', borderRadius: 8, outline: 'none' }
   const cardStyle = { background: 'rgba(10,22,40,0.7)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 20 }
+  const labelStyle = { fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
 
   if (loading && records.length === 0) {
     return (
@@ -100,8 +112,9 @@ export function SurveyPage() {
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 4 }}>CSAT / DSAT Survey</h1>
           <p style={{ fontSize: 14, color: '#3b82f6' }}>
-            {filtered.length.toLocaleString()} responses
+            {filtered.length.toLocaleString()} of {records.length.toLocaleString()} responses
             {selectedGroups.length > 0 ? ' · ' + selectedGroups.join(', ') : ' · All groups'}
+            {(dateFrom || dateTo) ? ' · ' + (dateFrom || '...') + ' → ' + (dateTo || 'today') : ''}
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -114,6 +127,7 @@ export function SurveyPage() {
         </div>
       </div>
 
+      {/* Summary Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
         <div style={{ ...cardStyle, padding: '14px 16px', borderTop: '2px solid #3b82f6' }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Total Responses</div>
@@ -133,65 +147,124 @@ export function SurveyPage() {
         </div>
       </div>
 
-      <div style={{ ...cardStyle, padding: '14px 18px', marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', position: 'relative', zIndex: 50 }}>
-        <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 3, border: '1px solid rgba(255,255,255,0.08)' }}>
-          {(['all', 'satisfied', 'dissatisfied'] as const).map(r => (
-            <button key={r} onClick={() => setRatingFilter(r)} style={{ padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', textTransform: 'capitalize', background: ratingFilter === r ? (r === 'satisfied' ? '#16a34a' : r === 'dissatisfied' ? '#dc2626' : '#1d4ed8') : 'transparent', color: ratingFilter === r ? '#fff' : 'rgba(255,255,255,0.4)' }}>
-              {r}
-            </button>
-          ))}
-        </div>
+      {/* Filters */}
+      <div style={{ ...cardStyle, padding: '16px 18px', marginBottom: 20, position: 'relative', zIndex: 50 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-end' }}>
 
-        <div style={{ position: 'relative', zIndex: 60 }}>
-          <button onClick={() => setGroupOpen(o => !o)} style={{ ...inputStyle, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-            <span style={{ color: selectedGroups.length ? '#60a5fa' : 'rgba(255,255,255,0.4)' }}>
-              {selectedGroups.length === 0 ? 'All Groups' : selectedGroups.length + ' selected'}
-            </span>
-            <span style={{ color: '#3b82f6', fontSize: 10 }}>▼</span>
-          </button>
-          {groupOpen && (
-            <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 1000, background: '#040a14', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, width: 220, maxHeight: 240, overflowY: 'auto', marginTop: 4, boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}>
-              <div style={{ padding: '6px 10px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 11, color: '#3b82f6' }}>{selectedGroups.length} selected</span>
-                <button onClick={() => setSelectedGroups([])} style={{ fontSize: 11, color: '#f97316', background: 'none', border: 'none', cursor: 'pointer' }}>Clear</button>
-              </div>
-              {ALLOWED_GROUPS.map(g => (
-                <label key={g} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.04)' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <input type="checkbox" checked={selectedGroups.includes(g)} onChange={() => toggleGroup(g)} style={{ accentColor: '#2563eb' }} />
-                  <span style={{ fontSize: 12, color: '#93c5fd' }}>{g}</span>
-                </label>
+          {/* Date range */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={labelStyle}>From</span>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => setDateFrom(e.target.value)}
+              style={{ ...inputStyle, width: 140 }}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={labelStyle}>To</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+              style={{ ...inputStyle, width: 140 }}
+            />
+          </div>
+
+          {(dateFrom || dateTo) && (
+            <button
+              onClick={clearDates}
+              style={{ padding: '6px 12px', background: 'transparent', color: '#f97316', border: '1px solid rgba(249,115,22,0.3)', borderRadius: 8, fontSize: 12, cursor: 'pointer', marginBottom: 1 }}
+            >
+              Clear dates
+            </button>
+          )}
+
+          <div style={{ width: 1, height: 32, background: 'rgba(255,255,255,0.08)' }} />
+
+          {/* Rating filter */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={labelStyle}>Rating</span>
+            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 3, border: '1px solid rgba(255,255,255,0.08)' }}>
+              {(['all', 'satisfied', 'dissatisfied'] as const).map(r => (
+                <button key={r} onClick={() => setRatingFilter(r)} style={{ padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', textTransform: 'capitalize', background: ratingFilter === r ? (r === 'satisfied' ? '#16a34a' : r === 'dissatisfied' ? '#dc2626' : '#1d4ed8') : 'transparent', color: ratingFilter === r ? '#fff' : 'rgba(255,255,255,0.4)' }}>
+                  {r}
+                </button>
               ))}
             </div>
-          )}
+          </div>
+
+          {/* Group filter */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={labelStyle}>Group</span>
+            <div style={{ position: 'relative', zIndex: 60 }}>
+              <button onClick={() => setGroupOpen(o => !o)} style={{ ...inputStyle, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', width: 160 }}>
+                <span style={{ color: selectedGroups.length ? '#60a5fa' : 'rgba(255,255,255,0.4)' }}>
+                  {selectedGroups.length === 0 ? 'All Groups' : selectedGroups.length + ' selected'}
+                </span>
+                <span style={{ color: '#3b82f6', fontSize: 10, marginLeft: 'auto' }}>▼</span>
+              </button>
+              {groupOpen && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 1000, background: '#040a14', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, width: 220, maxHeight: 240, overflowY: 'auto', marginTop: 4, boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}>
+                  <div style={{ padding: '6px 10px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 11, color: '#3b82f6' }}>{selectedGroups.length} selected</span>
+                    <button onClick={() => setSelectedGroups([])} style={{ fontSize: 11, color: '#f97316', background: 'none', border: 'none', cursor: 'pointer' }}>Clear</button>
+                  </div>
+                  {ALLOWED_GROUPS.map(g => (
+                    <label key={g} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.04)' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <input type="checkbox" checked={selectedGroups.includes(g)} onChange={() => toggleGroup(g)} style={{ accentColor: '#2563eb' }} />
+                      <span style={{ fontSize: 12, color: '#93c5fd' }}>{g}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Search */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={labelStyle}>Search</span>
+            <input
+              type="text"
+              placeholder="Agent or ticket ID..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ ...inputStyle, width: 200 }}
+            />
+          </div>
+
+          <div style={{ marginLeft: 'auto', fontSize: 12, color: 'rgba(255,255,255,0.3)', alignSelf: 'flex-end', paddingBottom: 2 }}>
+            {filtered.length} of {records.length} responses
+          </div>
         </div>
 
-        <input
-          type="text"
-          placeholder="Search agent or ticket ID..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{ ...inputStyle, width: 220 }}
-        />
-
-        <div style={{ marginLeft: 'auto', fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
-          {filtered.length} of {records.length} responses
-        </div>
+        {/* Active filter tags */}
+        {(selectedGroups.length > 0 || dateFrom || dateTo) && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
+            {dateFrom && (
+              <span style={{ fontSize: 11, background: 'rgba(30,58,138,0.5)', color: '#93c5fd', border: '1px solid rgba(147,197,253,0.2)', padding: '3px 10px', borderRadius: 999 }}>
+                From: {dateFrom}
+              </span>
+            )}
+            {dateTo && (
+              <span style={{ fontSize: 11, background: 'rgba(30,58,138,0.5)', color: '#93c5fd', border: '1px solid rgba(147,197,253,0.2)', padding: '3px 10px', borderRadius: 999 }}>
+                To: {dateTo}
+              </span>
+            )}
+            {selectedGroups.map(g => (
+              <span key={g} style={{ fontSize: 11, background: 'rgba(30,58,138,0.5)', color: '#93c5fd', border: '1px solid rgba(147,197,253,0.2)', padding: '3px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 5 }}>
+                {g}
+                <button onClick={() => toggleGroup(g)} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: 13 }}>×</button>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
-      {selectedGroups.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
-          {selectedGroups.map(g => (
-            <span key={g} style={{ fontSize: 11, background: 'rgba(30,58,138,0.5)', color: '#93c5fd', border: '1px solid rgba(147,197,253,0.2)', padding: '3px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 5 }}>
-              {g}
-              <button onClick={() => toggleGroup(g)} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: 13 }}>×</button>
-            </span>
-          ))}
-        </div>
-      )}
-
+      {/* Group breakdown */}
       <div style={{ ...cardStyle, marginBottom: 20 }}>
         <div style={{ fontWeight: 700, fontSize: 14, color: '#93c5fd', marginBottom: 14 }}>Group-wise Breakdown</div>
         <div style={{ overflowX: 'auto' }}>
@@ -224,6 +297,7 @@ export function SurveyPage() {
         </div>
       </div>
 
+      {/* Detailed table */}
       <div style={cardStyle}>
         <div style={{ fontWeight: 700, fontSize: 14, color: '#93c5fd', marginBottom: 16 }}>Detailed Survey Responses</div>
         <div style={{ overflowX: 'auto', maxHeight: 500, overflowY: 'auto' }}>
